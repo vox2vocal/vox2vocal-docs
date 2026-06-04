@@ -68,32 +68,38 @@ minikube start
 minikube addons enable ingress
 ```
 
-### 3. minikube Docker daemon 적용
-
-Kubernetes에서 로컬 이미지를 사용할 수 있도록 minikube Docker daemon으로 전환한다.
-
-```bash
-eval $(minikube docker-env)
-```
-
-적용 여부는 Docker daemon 정보로 확인한다.
-
-```bash
-docker info | grep -i "Name"
-```
-
-### 4. 서비스 이미지 빌드
+### 3. 서비스 이미지 빌드
 
 workspace 루트에서 실행한다.
 
+Windows Git Bash에서는 Docker Desktop daemon과 minikube 내부 Docker daemon이 서로 다를 수 있다. minikube가 바로 사용할 이미지를 만들기 위해 `minikube image build`를 기본으로 사용한다.
+
 ```bash
+minikube image build -t vox2vocal/bff-server:local ./bff-server
+minikube image build -t vox2vocal/api-gateway:local ./api-gateway
+minikube image build -t vox2vocal/user-service:local ./user-service
+minikube image build -t vox2vocal/worker:local ./worker
+```
+
+빌드된 이미지 확인:
+
+```bash
+minikube image ls | grep vox2vocal
+```
+
+대안으로 minikube Docker daemon을 현재 Git Bash 세션에 적용한 뒤 `docker build`를 사용할 수도 있다.
+
+```bash
+eval $(minikube docker-env)
 docker build -t vox2vocal/bff-server:local ./bff-server
 docker build -t vox2vocal/api-gateway:local ./api-gateway
 docker build -t vox2vocal/user-service:local ./user-service
 docker build -t vox2vocal/worker:local ./worker
 ```
 
-### 5. Kubernetes 리소스 적용
+이 방식은 현재 터미널 세션에만 적용된다. 새 Git Bash 창을 열면 다시 `eval $(minikube docker-env)`를 실행해야 한다.
+
+### 4. Kubernetes 리소스 적용
 
 예전에 `abyul` namespace 기준 manifest를 적용한 적이 있다면, 새 manifest 적용 전에 기존 namespace를 삭제한다.
 
@@ -120,6 +126,31 @@ kubectl apply -k infra/k8s
 kubectl get pods -n vox2vocal
 kubectl get svc -n vox2vocal
 kubectl get ingress -n vox2vocal
+```
+
+### 5. 서비스 이미지 갱신 후 재시작
+
+이미지를 다시 빌드한 경우 기존 Deployment가 새 이미지를 사용하도록 재시작한다.
+
+```bash
+kubectl rollout restart deployment -n vox2vocal bff-server api-gateway user-service worker
+```
+
+pod 상태를 확인한다.
+
+```bash
+kubectl get pods -n vox2vocal -w
+```
+
+정상 상태 예시:
+
+```txt
+api-gateway    1/1 Running
+bff-server     1/1 Running
+postgres       1/1 Running
+redis          1/1 Running
+user-service   1/1 Running
+worker         1/1 Running
 ```
 
 ### 6. 로컬 도메인 연결
@@ -154,6 +185,14 @@ Git Bash에서 관리자 권한으로 hosts 파일을 직접 수정하기 어렵
 
 `192.168.49.2` 부분은 `minikube ip` 결과로 교체한다.
 
+hosts 등록 확인:
+
+```bash
+ping vox2vocal.local
+```
+
+`vox2vocal.local`이 minikube IP로 해석되면 hosts 등록은 성공이다. Windows 환경에서는 minikube IP가 ICMP ping에 응답하지 않을 수 있으므로, ping timeout만으로 hosts 설정 실패로 판단하지 않는다.
+
 ### 7. App 실행
 
 별도 터미널에서 `app` 프로젝트를 실행한다.
@@ -182,10 +221,10 @@ http://vox2vocal.local/graphql
 Docker Desktop 실행
 -> minikube start
 -> minikube addons enable ingress
--> eval $(minikube docker-env)
--> bff-server / api-gateway / user-service / worker 이미지 빌드
+-> minikube image build로 서비스 이미지 빌드
 -> 기존 abyul namespace가 있으면 삭제
 -> kubectl apply -k infra/k8s
+-> 이미지 갱신 시 kubectl rollout restart 실행
 -> pods, services, ingress 상태 확인
 -> hosts에 vox2vocal.local 등록
 -> app 실행
@@ -248,6 +287,132 @@ infra manifest 렌더링 확인:
 
 ```bash
 kubectl kustomize infra/k8s
+```
+
+Kubernetes 리소스 상태 확인:
+
+```bash
+kubectl get pods -n vox2vocal
+kubectl get svc -n vox2vocal
+kubectl get ingress -n vox2vocal
+```
+
+서비스 로그 확인:
+
+```bash
+kubectl logs -n vox2vocal deploy/bff-server
+kubectl logs -n vox2vocal deploy/api-gateway
+kubectl logs -n vox2vocal deploy/user-service
+kubectl logs -n vox2vocal deploy/worker
+```
+
+재시작으로 종료된 이전 컨테이너 로그는 `--previous` 옵션으로 확인한다.
+
+```bash
+kubectl logs -n vox2vocal deploy/bff-server --previous
+```
+
+## 장애 대응
+
+### ImagePullBackOff
+
+`ImagePullBackOff`는 Kubernetes가 지정된 이미지를 찾지 못할 때 주로 발생한다.
+
+확인:
+
+```bash
+kubectl get pods -n vox2vocal
+minikube image ls | grep vox2vocal
+```
+
+해결:
+
+```bash
+minikube image build -t vox2vocal/bff-server:local ./bff-server
+minikube image build -t vox2vocal/api-gateway:local ./api-gateway
+minikube image build -t vox2vocal/user-service:local ./user-service
+minikube image build -t vox2vocal/worker:local ./worker
+kubectl rollout restart deployment -n vox2vocal bff-server api-gateway user-service worker
+```
+
+### Cannot find module '/app/dist/main.js'
+
+NestJS 빌드 결과가 `dist/src/main.js`에 생성되는데 Dockerfile이 `dist/main.js`를 실행하면 발생한다.
+
+각 서버 Dockerfile의 실행 경로는 다음과 같아야 한다.
+
+```dockerfile
+CMD ["node", "dist/src/main.js"]
+```
+
+또한 Docker build context에 로컬 `dist` 또는 `node_modules`가 섞이지 않도록 각 서버 repo에 `.dockerignore`를 둔다.
+
+```txt
+node_modules
+dist
+coverage
+.git
+.env
+npm-debug.log
+```
+
+### bff-server GraphQLModule 패키지 누락
+
+`bff-server` 로그에 다음 오류가 나오면 `@as-integrations/express5` 의존성이 필요하다.
+
+```txt
+The "@as-integrations/express5" package is missing.
+```
+
+설치:
+
+```bash
+cd bff-server
+npm.cmd install @as-integrations/express5
+```
+
+### user-service Prisma client 초기화 오류
+
+`user-service` 로그에 다음 오류가 나오면 Docker runner 이미지에 Prisma generated client가 포함되지 않은 것이다.
+
+```txt
+@prisma/client did not initialize yet. Please run "prisma generate"
+```
+
+Dockerfile runner 단계에서 build 단계의 `.prisma` 산출물을 복사해야 한다.
+
+```dockerfile
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+```
+
+수정 후 이미지를 다시 빌드하고 Deployment를 재시작한다.
+
+```bash
+minikube image build -t vox2vocal/user-service:local ./user-service
+kubectl rollout restart deployment -n vox2vocal user-service
+```
+
+### vox2vocal.local 접속 timeout
+
+`kubectl get ingress -n vox2vocal`에서 ingress가 보이고 hosts 파일도 등록되어 있는데 Windows에서 `curl http://vox2vocal.local`이 timeout될 수 있다.
+
+먼저 pod와 ingress 상태를 확인한다.
+
+```bash
+kubectl get pods -n vox2vocal
+kubectl get ingress -n vox2vocal
+```
+
+pod가 모두 `1/1 Running`이면 서비스 자체는 정상 기동된 것이다. Windows와 minikube driver 조합에 따라 ingress IP 직접 접근이 막힐 수 있으므로, 이 경우 임시로 port-forward로 확인한다.
+
+```bash
+kubectl port-forward -n vox2vocal svc/bff-server 4000:4000
+```
+
+별도 Git Bash 창에서 확인:
+
+```bash
+curl http://localhost:4000/health
 ```
 
 ## 주의사항
