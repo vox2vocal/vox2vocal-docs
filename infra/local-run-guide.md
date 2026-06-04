@@ -211,7 +211,62 @@ ping vox2vocal.local
 
 `vox2vocal.local`이 minikube IP로 해석되면 hosts 등록은 성공이다. Windows 환경에서는 minikube IP가 ICMP ping에 응답하지 않을 수 있으므로, ping timeout만으로 hosts 설정 실패로 판단하지 않는다.
 
-### 7. App 실행
+### 7. 로컬 PostgreSQL 접속
+
+PostgreSQL Service는 `ClusterIP`이므로 Kubernetes 클러스터 내부에서만 직접 접근할 수 있다. 로컬 PC에서 접속하려면 `kubectl port-forward`를 사용한다.
+
+로컬 5432 포트가 이미 사용 중일 수 있으므로, 기본 예시는 `15432` 포트를 사용한다.
+
+터미널 1:
+
+```bash
+kubectl port-forward -n vox2vocal svc/postgres 15432:5432
+```
+
+의미:
+
+```txt
+localhost:15432 -> vox2vocal namespace의 svc/postgres:5432
+```
+
+연결 확인:
+
+```powershell
+Test-NetConnection -ComputerName localhost -Port 15432
+```
+
+성공 예시:
+
+```txt
+TcpTestSucceeded: True
+```
+
+로컬 접속 정보:
+
+```txt
+host: localhost
+port: 15432
+database: vox2vocal
+user: vox2vocal
+password: vox2vocal
+schema: users
+```
+
+DATABASE_URL:
+
+```env
+DATABASE_URL=postgresql://vox2vocal:vox2vocal@localhost:15432/vox2vocal?schema=users
+```
+
+`psql`이 설치되어 있다면 다음 명령으로 접속할 수 있다.
+
+```bash
+psql "postgresql://vox2vocal:vox2vocal@localhost:15432/vox2vocal?schema=users"
+```
+
+포트포워딩을 실행 중인 터미널을 닫거나 `Ctrl + C`를 누르면 연결이 종료된다.
+
+### 8. App 실행
 
 별도 터미널에서 `app` 프로젝트를 실행한다.
 
@@ -245,6 +300,7 @@ Docker Desktop 실행
 -> 이미지 갱신 시 kubectl rollout restart 실행
 -> pods, services, ingress 상태 확인
 -> hosts에 vox2vocal.local 등록
+-> 로컬 DB 접속이 필요하면 kubectl port-forward -n vox2vocal svc/postgres 15432:5432 실행
 -> app 실행
 ```
 
