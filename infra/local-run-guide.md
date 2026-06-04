@@ -53,6 +53,13 @@ C:\Program Files\Kubernetes\Minikube
 
 전체 서비스 연결을 확인할 때는 minikube 기반 구동을 기본으로 한다.
 
+Kubernetes 구성에는 애플리케이션 서비스뿐 아니라 PostgreSQL과 Redis도 포함된다.
+
+| 리소스 | 이미지 | 역할 |
+| --- | --- | --- |
+| `postgres` | `postgres:17.10-alpine` | user-service 데이터베이스 |
+| `redis` | `redis:7.2.14-alpine3.21` | worker/BullMQ queue |
+
 ### 1. Docker Desktop 실행
 
 먼저 Docker Desktop을 실행하고 Docker CLI가 동작하는지 확인한다.
@@ -120,6 +127,8 @@ kubectl get namespace
 kubectl apply -k infra/k8s
 ```
 
+`postgres`와 `redis`도 이 명령으로 함께 생성 또는 갱신된다.
+
 상태 확인:
 
 ```bash
@@ -151,6 +160,15 @@ postgres       1/1 Running
 redis          1/1 Running
 user-service   1/1 Running
 worker         1/1 Running
+```
+
+PostgreSQL 또는 Redis 이미지 태그를 변경한 경우에도 상태를 확인한다.
+
+```bash
+kubectl get statefulset -n vox2vocal postgres
+kubectl get deployment -n vox2vocal redis
+kubectl logs -n vox2vocal statefulset/postgres --tail=100
+kubectl logs -n vox2vocal deploy/redis --tail=100
 ```
 
 ### 6. 로컬 도메인 연결
@@ -295,6 +313,8 @@ Kubernetes 리소스 상태 확인:
 kubectl get pods -n vox2vocal
 kubectl get svc -n vox2vocal
 kubectl get ingress -n vox2vocal
+kubectl get statefulset -n vox2vocal
+kubectl get deployment -n vox2vocal
 ```
 
 서비스 로그 확인:
@@ -304,6 +324,8 @@ kubectl logs -n vox2vocal deploy/bff-server
 kubectl logs -n vox2vocal deploy/api-gateway
 kubectl logs -n vox2vocal deploy/user-service
 kubectl logs -n vox2vocal deploy/worker
+kubectl logs -n vox2vocal statefulset/postgres
+kubectl logs -n vox2vocal deploy/redis
 ```
 
 재시작으로 종료된 이전 컨테이너 로그는 `--previous` 옵션으로 확인한다.
@@ -391,6 +413,24 @@ COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 minikube image build -t vox2vocal/user-service:local ./user-service
 kubectl rollout restart deployment -n vox2vocal user-service
 ```
+
+### Prisma table does not exist
+
+GraphQL `me` 쿼리 또는 user-service 로그에 다음 오류가 나오면 PostgreSQL은 실행 중이지만 Prisma schema가 데이터베이스에 적용되지 않은 상태다.
+
+```txt
+The table `users.users` does not exist in the current database.
+```
+
+이 경우 PostgreSQL pod 상태를 먼저 확인한다.
+
+```bash
+kubectl get pods -n vox2vocal
+kubectl logs -n vox2vocal statefulset/postgres --tail=100
+kubectl logs -n vox2vocal deploy/user-service --tail=100
+```
+
+그 다음 user-service의 Prisma migration 적용 절차를 진행한다.
 
 ### vox2vocal.local 접속 timeout
 
