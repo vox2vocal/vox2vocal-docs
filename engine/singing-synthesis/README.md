@@ -35,9 +35,9 @@ Vox2Vocal의 핵심 생성 엔진이며, 최종 보컬 품질을 결정하는 �
 - 단일 보이스 모델
 - 짧은 monophonic vocal phrase 생성
 - pitch와 duration 입력 기반 mel spectrogram 생성
-- vocoder-render-engine으로 넘길 표준 feature 출력
+- engine-vocoder-render으로 넘길 표준 feature 출력
 
 ## 연결 엔진
 
-- 이전 단계: `melody-mapping-engine`, `rhythm-timing-engine`, `phoneme-alignment-engine`
-- 다음 단계: `vocoder-render-engine`, `expression-engine`, `evaluation-engine`
+- 이전 단계: `engine-melody-mapping`, `engine-rhythm-timing`, `engine-phoneme-alignment`
+- 다음 단계: `engine-vocoder-render`, `engine-expression`, `engine-evaluation`

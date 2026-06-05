@@ -37,5 +37,5 @@ Melody Mapping Engine은 음성의 피치 커브 또는 사용자가 제공한 �
 
 ## 연결 엔진
 
-- 이전 단계: `voice-pitch-engine`, `phoneme-alignment-engine`
-- 다음 단계: `singing-synthesis-engine`, `expression-engine`
+- 이전 단계: `engine-voice-pitch`, `engine-phoneme-alignment`
+- 다음 단계: `engine-singing-synthesis`, `engine-expression`

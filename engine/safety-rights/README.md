@@ -41,4 +41,4 @@ Safety Rights Engine은 보이스 데이터, 보이스 모델, 변환 결과물�
 ## 연결 엔진
 
 - 호출 시점: 업로드, 보이스 모델 선택, voice conversion, export
-- 보호 대상: `voice-conversion-engine`, `singing-synthesis-engine`, `mix-master-engine`
+- 보호 대상: `engine-voice-conversion`, `engine-singing-synthesis`, `engine-mix-master`

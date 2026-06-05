@@ -34,9 +34,9 @@ Voice Conversion Engine은 입력 음성의 언어적 내용과 표현을 보존
 - 사용자 본인 보이스 모델만 허용
 - pitch contour 보존
 - 짧은 문장 단위 conversion
-- safety-rights-engine 권한 체크 필수화
+- engine-safety-rights 권한 체크 필수화
 
 ## 연결 엔진
 
-- 이전 단계: `phoneme-alignment-engine`, `voice-pitch-engine`, `safety-rights-engine`
-- 다음 단계: `singing-synthesis-engine`, `vocoder-render-engine`
+- 이전 단계: `engine-phoneme-alignment`, `engine-voice-pitch`, `engine-safety-rights`
+- 다음 단계: `engine-singing-synthesis`, `engine-vocoder-render`

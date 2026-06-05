@@ -40,5 +40,5 @@ Mix Master Engine은 생성된 보컬을 사용자가 바로 들을 수 있는 �
 
 ## 연결 엔진
 
-- 이전 단계: `vocoder-render-engine`, `expression-engine`
-- 다음 단계: `evaluation-engine`
+- 이전 단계: `engine-vocoder-render`, `engine-expression`
+- 다음 단계: `engine-evaluation`
