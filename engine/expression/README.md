@@ -40,5 +40,5 @@ Expression Engine은 보컬이 기계적으로 들리지 않도록 비브라토,
 
 ## 연결 엔진
 
-- 이전 단계: `voice-analysis-engine`, `melody-mapping-engine`, `singing-synthesis-engine`
-- 다음 단계: `singing-synthesis-engine`, `vocoder-render-engine`, `mix-master-engine`
+- 이전 단계: `engine-voice-analysis`, `engine-melody-mapping`, `engine-singing-synthesis`
+- 다음 단계: `engine-singing-synthesis`, `engine-vocoder-render`, `engine-mix-master`

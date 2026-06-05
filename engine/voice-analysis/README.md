@@ -36,5 +36,5 @@ Voice Analysis Engine은 입력 음성의 발화 특성을 분석한다. 말의 
 
 ## 연결 엔진
 
-- 이전 단계: `audio-ingest-engine`
-- 다음 단계: `voice-pitch-engine`, `rhythm-timing-engine`, `expression-engine`
+- 이전 단계: `engine-audio-ingest`
+- 다음 단계: `engine-voice-pitch`, `engine-rhythm-timing`, `engine-expression`

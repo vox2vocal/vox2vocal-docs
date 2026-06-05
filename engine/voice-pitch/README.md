@@ -4,7 +4,7 @@
 
 Voice Pitch Engine은 입력 음성 또는 보컬에서 기본 주파수인 F0를 추정하고, 노래 변환에 사용할 수 있는 피치 커브로 정제한다.
 
-현재 생성한 `voice-pitch-engine` 저장소가 이 엔진의 구현 위치가 된다.
+현재 생성한 `engine-voice-pitch` 저장소가 이 엔진의 구현 위치가 된다.
 
 ## 입력
 
@@ -38,8 +38,8 @@ Voice Pitch Engine은 입력 음성 또는 보컬에서 기본 주파수인 F0�
 
 ## 연결 엔진
 
-- 이전 단계: `voice-analysis-engine`
-- 다음 단계: `melody-mapping-engine`, `rhythm-timing-engine`, `singing-synthesis-engine`
+- 이전 단계: `engine-voice-analysis`
+- 다음 단계: `engine-melody-mapping`, `engine-rhythm-timing`, `engine-singing-synthesis`
 
 ## 데이터 예시
 

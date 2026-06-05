@@ -37,5 +37,5 @@ Vocoder Render Engine은 Singing Synthesis Engine 또는 Voice Conversion Engine
 
 ## 연결 엔진
 
-- 이전 단계: `singing-synthesis-engine`, `voice-conversion-engine`
-- 다음 단계: `expression-engine`, `mix-master-engine`, `evaluation-engine`
+- 이전 단계: `engine-singing-synthesis`, `engine-voice-conversion`
+- 다음 단계: `engine-expression`, `engine-mix-master`, `engine-evaluation`

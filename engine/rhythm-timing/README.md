@@ -37,5 +37,5 @@ Rhythm Timing Engine은 음성의 음절과 발화 길이를 음악적 박자에
 
 ## 연결 엔진
 
-- 이전 단계: `voice-analysis-engine`, `phoneme-alignment-engine`
-- 다음 단계: `melody-mapping-engine`, `singing-synthesis-engine`
+- 이전 단계: `engine-voice-analysis`, `engine-phoneme-alignment`
+- 다음 단계: `engine-melody-mapping`, `engine-singing-synthesis`

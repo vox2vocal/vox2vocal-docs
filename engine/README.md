@@ -48,18 +48,18 @@ Audio Ingest
 
 | 순서 | 엔진 | MVP 단계 | 초기 구현 범위 |
 | --- | --- | --- | --- |
-| 1 | `audio-ingest-engine` | 1차 MVP | 입력 오디오 표준화, 무음 구간 탐지 |
-| 2 | `voice-analysis-engine` | 1차 MVP | 에너지, 발화 속도, 휴지 구간 분석 |
-| 3 | `voice-pitch-engine` | 1차 MVP | F0 추출, confidence 필터링, MIDI 변환 |
-| 4 | `phoneme-alignment-engine` | 1차 MVP | 한국어 음절 단위 정렬 |
-| 5 | `rhythm-timing-engine` | 1차 MVP | BPM grid 기반 음절 타이밍 보정 |
-| 6 | `melody-mapping-engine` | 1차 MVP | pitch contour를 note sequence로 변환 |
-| 7 | `singing-synthesis-engine` | 1차 MVP | 단일 보이스 기반 짧은 보컬 phrase 생성 |
-| 8 | `vocoder-render-engine` | 1차 MVP | mel/acoustic feature를 wav로 렌더링 |
-| 9 | `mix-master-engine` | 1차 MVP | 기본 EQ, compressor, limiter 후처리 |
-| 10 | `evaluation-engine` | 운영 필수 | pitch, timing, clipping 리포트 |
-| 11 | `safety-rights-engine` | 운영 필수 | 보이스 권한 확인, 감사 로그 기록 |
-| 12 | `expression-engine` | 2차 확장 | 비브라토, 호흡, 강세, release 제어 |
-| 13 | `voice-conversion-engine` | 2차 확장 | 권한 있는 target voice로 timbre 변환 |
+| 1 | `engine-audio-ingest` | 1차 MVP | 입력 오디오 표준화, 무음 구간 탐지 |
+| 2 | `engine-voice-analysis` | 1차 MVP | 에너지, 발화 속도, 휴지 구간 분석 |
+| 3 | `engine-voice-pitch` | 1차 MVP | F0 추출, confidence 필터링, MIDI 변환 |
+| 4 | `engine-phoneme-alignment` | 1차 MVP | 한국어 음절 단위 정렬 |
+| 5 | `engine-rhythm-timing` | 1차 MVP | BPM grid 기반 음절 타이밍 보정 |
+| 6 | `engine-melody-mapping` | 1차 MVP | pitch contour를 note sequence로 변환 |
+| 7 | `engine-singing-synthesis` | 1차 MVP | 단일 보이스 기반 짧은 보컬 phrase 생성 |
+| 8 | `engine-vocoder-render` | 1차 MVP | mel/acoustic feature를 wav로 렌더링 |
+| 9 | `engine-mix-master` | 1차 MVP | 기본 EQ, compressor, limiter 후처리 |
+| 10 | `engine-evaluation` | 운영 필수 | pitch, timing, clipping 리포트 |
+| 11 | `engine-safety-rights` | 운영 필수 | 보이스 권한 확인, 감사 로그 기록 |
+| 12 | `engine-expression` | 2차 확장 | 비브라토, 호흡, 강세, release 제어 |
+| 13 | `engine-voice-conversion` | 2차 확장 | 권한 있는 target voice로 timbre 변환 |
 
-초기 MVP는 13개 엔진을 모두 동일한 수준으로 완성하는 것이 아니라, 1차 MVP 엔진을 먼저 end-to-end로 연결하고 `evaluation-engine`과 `safety-rights-engine`은 운영 안전장치로 최소 기능부터 포함한다. `expression-engine`과 `voice-conversion-engine`은 품질과 제품 리스크가 큰 영역이므로 기본 보컬 생성 흐름이 안정화된 뒤 확장한다.
+초기 MVP는 13개 엔진을 모두 동일한 수준으로 완성하는 것이 아니라, 1차 MVP 엔진을 먼저 end-to-end로 연결하고 `engine-evaluation`과 `engine-safety-rights`는 운영 안전장치로 최소 기능부터 포함한다. `engine-expression`과 `engine-voice-conversion`은 품질과 제품 리스크가 큰 영역이므로 기본 보컬 생성 흐름이 안정화된 뒤 확장한다.

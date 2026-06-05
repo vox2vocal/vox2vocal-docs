@@ -38,5 +38,5 @@ Phoneme Alignment Engine은 입력 음성과 텍스트, 음절, 음소를 시간
 
 ## 연결 엔진
 
-- 이전 단계: `audio-ingest-engine`
-- 다음 단계: `rhythm-timing-engine`, `melody-mapping-engine`, `singing-synthesis-engine`
+- 이전 단계: `engine-audio-ingest`
+- 다음 단계: `engine-rhythm-timing`, `engine-melody-mapping`, `engine-singing-synthesis`

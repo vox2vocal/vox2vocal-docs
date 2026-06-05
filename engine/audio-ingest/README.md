@@ -38,5 +38,5 @@ Audio Ingest Engine은 사용자가 업로드한 음성, 노래, 가이드 멜�
 
 ## 연결 엔진
 
-- 다음 단계: `voice-analysis-engine`
-- 보조 단계: `evaluation-engine`, `safety-rights-engine`
+- 다음 단계: `engine-voice-analysis`
+- 보조 단계: `engine-evaluation`, `engine-safety-rights`
