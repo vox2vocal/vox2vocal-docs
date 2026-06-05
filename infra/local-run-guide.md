@@ -75,7 +75,23 @@ minikube start
 minikube addons enable ingress
 ```
 
-### 3. 서비스 이미지 빌드
+### 3. minikube tunnel 실행
+
+로컬 PC에서 minikube 클러스터의 ingress와 `LoadBalancer` Service를 사용하려면 `minikube tunnel`을 별도 터미널에서 실행해 둔다.
+
+`minikube tunnel`은 실행 중인 터미널을 점유한다. 이 터미널은 로컬 실행과 DB 접속이 끝날 때까지 닫지 않는다.
+
+터미널 1:
+
+```bash
+minikube tunnel
+```
+
+Windows에서 관리자 권한을 요구할 수 있다. 권한 요청이 나오면 승인하고, 터미널에 tunnel 프로세스가 계속 떠 있는 상태로 둔다.
+
+이후 명령은 새 Git Bash 또는 PowerShell 터미널에서 실행한다.
+
+### 4. 서비스 이미지 빌드
 
 workspace 루트에서 실행한다.
 
@@ -106,7 +122,7 @@ docker build -t vox2vocal/worker:local ./worker
 
 이 방식은 현재 터미널 세션에만 적용된다. 새 Git Bash 창을 열면 다시 `eval $(minikube docker-env)`를 실행해야 한다.
 
-### 4. Kubernetes 리소스 적용
+### 5. Kubernetes 리소스 적용
 
 예전에 `abyul` namespace 기준 manifest를 적용한 적이 있다면, 새 manifest 적용 전에 기존 namespace를 삭제한다.
 
@@ -137,7 +153,7 @@ kubectl get svc -n vox2vocal
 kubectl get ingress -n vox2vocal
 ```
 
-### 5. 서비스 이미지 갱신 후 재시작
+### 6. 서비스 이미지 갱신 후 재시작
 
 이미지를 다시 빌드한 경우 기존 Deployment가 새 이미지를 사용하도록 재시작한다.
 
@@ -171,7 +187,7 @@ kubectl logs -n vox2vocal statefulset/postgres --tail=100
 kubectl logs -n vox2vocal deploy/redis --tail=100
 ```
 
-### 6. 로컬 도메인 연결
+### 7. 로컬 도메인 연결
 
 로컬 GraphQL endpoint는 다음 주소를 기준으로 한다.
 
@@ -211,23 +227,33 @@ ping vox2vocal.local
 
 `vox2vocal.local`이 minikube IP로 해석되면 hosts 등록은 성공이다. Windows 환경에서는 minikube IP가 ICMP ping에 응답하지 않을 수 있으므로, ping timeout만으로 hosts 설정 실패로 판단하지 않는다.
 
-### 7. 로컬 PostgreSQL 접속
+### 8. 로컬 PostgreSQL 접속
 
-PostgreSQL Service는 `ClusterIP`이므로 Kubernetes 클러스터 내부에서만 직접 접근할 수 있다. 로컬 PC에서 접속하려면 `kubectl port-forward`를 사용한다.
+PostgreSQL Service는 `LoadBalancer` 타입이며, service port는 `15432`이다. 로컬 PC에서 접속하려면 `minikube tunnel`이 실행 중이어야 한다.
 
-로컬 5432 포트가 이미 사용 중일 수 있으므로, 기본 예시는 `15432` 포트를 사용한다.
-
-터미널 1:
-
-```bash
-kubectl port-forward -n vox2vocal svc/postgres 15432:5432
-```
-
-의미:
+DB 접속 전제:
 
 ```txt
-localhost:15432 -> vox2vocal namespace의 svc/postgres:5432
+터미널 1: minikube tunnel 실행 중
+터미널 2: psql, Prisma, 애플리케이션 등 DB 접속 명령 실행
 ```
+
+`minikube tunnel`을 실행 중인 터미널을 닫으면 `LoadBalancer` 접속 경로가 종료된다. 로컬에서 DB에 접속하는 동안 tunnel 터미널을 유지한다.
+
+PostgreSQL Service의 접속 IP를 확인한다.
+
+```bash
+kubectl get svc -n vox2vocal postgres
+```
+
+출력 예시:
+
+```txt
+NAME       TYPE           CLUSTER-IP      EXTERNAL-IP     PORT(S)
+postgres   LoadBalancer   10.96.123.45    127.0.0.1       15432:xxxxx/TCP
+```
+
+`EXTERNAL-IP`가 `127.0.0.1`이면 `localhost:15432`로 접속한다. 다른 IP가 표시되면 해당 IP와 `15432` 포트를 사용한다.
 
 연결 확인:
 
@@ -264,9 +290,17 @@ DATABASE_URL=postgresql://vox2vocal:vox2vocal@localhost:15432/vox2vocal?schema=u
 psql "postgresql://vox2vocal:vox2vocal@localhost:15432/vox2vocal?schema=users"
 ```
 
-포트포워딩을 실행 중인 터미널을 닫거나 `Ctrl + C`를 누르면 연결이 종료된다.
+만약 `minikube tunnel` 환경에서 `localhost:15432` 접속이 되지 않으면 `kubectl get svc -n vox2vocal postgres`의 `EXTERNAL-IP`를 host로 사용한다.
 
-### 8. App 실행
+대체 방법으로 `kubectl port-forward`를 사용할 수도 있다. 이 경우에만 별도 터미널에서 다음 명령을 실행한다.
+
+```bash
+kubectl port-forward -n vox2vocal svc/postgres 15432:15432
+```
+
+port-forward를 사용하면 `localhost:15432`로 접속한다. port-forward 터미널을 닫거나 `Ctrl + C`를 누르면 연결이 종료된다.
+
+### 9. App 실행
 
 별도 터미널에서 `app` 프로젝트를 실행한다.
 
@@ -294,13 +328,14 @@ http://vox2vocal.local/graphql
 Docker Desktop 실행
 -> minikube start
 -> minikube addons enable ingress
+-> 별도 터미널에서 minikube tunnel 실행 후 유지
 -> minikube image build로 서비스 이미지 빌드
 -> 기존 abyul namespace가 있으면 삭제
 -> kubectl apply -k infra/k8s
 -> 이미지 갱신 시 kubectl rollout restart 실행
 -> pods, services, ingress 상태 확인
 -> hosts에 vox2vocal.local 등록
--> 로컬 DB 접속이 필요하면 kubectl port-forward -n vox2vocal svc/postgres 15432:5432 실행
+-> 로컬 DB 접속이 필요하면 kubectl get svc -n vox2vocal postgres로 EXTERNAL-IP 확인
 -> app 실행
 ```
 
@@ -492,7 +527,7 @@ kubectl logs -n vox2vocal deploy/user-service --tail=100
 
 `kubectl get ingress -n vox2vocal`에서 ingress가 보이고 hosts 파일도 등록되어 있는데 Windows에서 `curl http://vox2vocal.local`이 timeout될 수 있다.
 
-먼저 pod와 ingress 상태를 확인한다.
+먼저 `minikube tunnel`이 별도 터미널에서 계속 실행 중인지 확인한 뒤, pod와 ingress 상태를 확인한다.
 
 ```bash
 kubectl get pods -n vox2vocal
