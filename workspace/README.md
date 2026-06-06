@@ -52,3 +52,23 @@ npm run start:dev
 ```
 
 minikube 배포 방법은 [`infra/README.md`](./infra/README.md)를 참고합니다.
+
+## Root Agent Document
+
+`AGENT.md`는 Vox2Vocal 전체 workspace를 기준으로 작업하는 에이전트 지침 파일이다.
+
+이 파일은 모든 프로젝트의 상위 루트 경로에 있어야 한다.
+
+기준 위치:
+
+```txt
+C:\Users\CMS\Desktop\gitbyul\vox2vocal\AGENT.md
+```
+
+docs repo에는 루트 배치용 원본을 다음 경로에 보관한다.
+
+```txt
+docs/root/AGENT.md
+```
+
+workspace 루트의 `AGENT.md`를 갱신하면 `docs/root/AGENT.md`도 함께 갱신한다.
