@@ -42,6 +42,20 @@ Audio Ingest
 | [Evaluation](./evaluation/README.md) | 음정, 박자, 발음, 자연스러움 품질 평가 |
 | [Safety Rights](./safety-rights/README.md) | 보이스 권한, 동의, 정책, 감사 로그 관리 |
 
+## 운영 공통 문서
+
+| 문서 | 역할 |
+| --- | --- |
+| [Engine Logging and Audit Management](./logging/README.md) | 엔진 로그, 운영 관측성, audit 데이터, 보안감사 인덱스 |
+| [Logging Development Direction](./logging/development-direction.md) | 로그 개발 스택, 저장 위치 책임, 모듈 아키텍처, 단계별 적용 계획 |
+| [Log Domain Guide](./logging/log-domain-guide.md) | 로그 도메인을 쉬운 기준으로 설명하고 domain별 저장 위치 정리 |
+| [Log Storage Policy](./logging/storage-policy.md) | 로그 레벨별, 종류별 최종 저장소와 보관 정책 |
+| [Logging Development Guide](./logging/development-guide.md) | 각 엔진에서 로그를 어떻게 개발할지 정의 |
+| [Engine Log Event Index](./logging/engine-log-index.md) | 엔진별 필수 로그 이벤트 인덱스 |
+| [Logging Operations Guide](./logging/operations-guide.md) | 운영 로그 수집, 대시보드, 알림, 보관 정책 |
+| [Audit Data Guide](./logging/audit-data-guide.md) | audit event schema, 저장, 무결성, 접근 통제 |
+| [Security Audit Guide](./logging/security-audit-guide.md) | 보안감사 대응, 증적 패키지, 침해 조사 기준 |
+
 ## MVP 구축 순서
 
 엔진 목록과 구축 순서는 같은 엔진 집합을 기준으로 한다. 다만 모든 엔진을 같은 깊이로 구현하지 않고, 초기에는 최소 기능으로 연결한 뒤 단계적으로 고도화한다.
