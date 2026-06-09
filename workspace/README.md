@@ -22,14 +22,24 @@ worker
 
 ## 프로젝트
 
-| 프로젝트 | 역할 | 주요 기술 |
-| --- | --- | --- |
-| `app` | Expo RN App/Web | Expo, React Native Web, Tamagui |
-| `bff-server` | GraphQL BFF | NestJS, GraphQL, Apollo, gRPC client |
-| `api-gateway` | 내부 API Gateway | NestJS, gRPC server/client |
-| `user-service` | 사용자 도메인 서비스 | NestJS, gRPC, Prisma, PostgreSQL |
-| `worker` | 비동기 작업 서버 | NestJS, BullMQ, Redis |
-| `infra` | minikube/Kubernetes 구성 | Deployment, Service, Ingress, PostgreSQL, Redis |
+| 프로젝트       | 역할                     | 주요 기술                                       |
+| -------------- | ------------------------ | ----------------------------------------------- |
+| `app`          | Expo RN App/Web          | Expo, React Native Web, Tamagui                 |
+| `bff-server`   | GraphQL BFF              | NestJS, GraphQL, Apollo, gRPC client            |
+| `api-gateway`  | 내부 API Gateway         | NestJS, gRPC server/client                      |
+| `user-service` | 사용자 도메인 서비스     | NestJS, gRPC, Prisma, PostgreSQL                |
+| `worker`       | 비동기 작업 서버         | NestJS, BullMQ, Redis                           |
+| `infra`        | minikube/Kubernetes 구성 | Deployment, Service, Ingress, PostgreSQL, Redis |
+
+## 프론트엔드 디자인 시스템
+
+프론트엔드 폴더 구조, route/feature/shared 계층, 상태 관리, 플랫폼 분기 기준은 [`frontend/architecture.md`](../frontend/architecture.md)를 따른다.
+
+모바일(Android/iOS), 태블릿, 웹 화면 개발 기준은 [`frontend/design-system-guide.md`](../frontend/design-system-guide.md)를 따른다.
+
+이 문서는 반응형 breakpoint, layout/grid, design token, component state, accessibility, QA 기준을 정의한다.
+
+브랜드 컬러, 인증 화면, 자산 사용 기준을 빠르게 확인할 때는 [`frontend/design.md`](../frontend/design.md)를 먼저 본다.
 
 ## 외부 호출
 
