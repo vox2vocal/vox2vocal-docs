@@ -1,6 +1,6 @@
 # Vox2Vocal MVP PRD Draft
 
-문서 버전: v0.1  
+문서 버전: v0.2  
 작성일: 2026-06-09  
 상태: 초안  
 작성 기준: `pm-context` + `prd-writer` skill 기준
@@ -10,11 +10,11 @@
 ### Brief
 
 - Product or feature: Vox2Vocal MVP
-- Target users: 짧은 음성, 가이드 보컬, 멜로디 아이디어를 보컬 트랙으로 빠르게 실험하려는 크리에이터, 보컬 프로듀서, 작곡가, 데모 제작자
-- Problem: 사용자는 말이나 가이드 보이스로 떠오른 멜로디/보컬 아이디어를 실제로 들을 수 있는 보컬 트랙 형태로 빠르게 검증하기 어렵다. 기존 워크플로우는 녹음, 튠, 편집, 합성, 믹싱 단계가 분리되어 있고 기술 장벽이 높다.
-- Goal: 가입한 사용자가 짧은 음성/가이드 보컬을 업로드하고, 시스템이 표준화/분석/피치/타이밍/멜로디/합성/렌더/후처리를 거쳐 다운로드 가능한 보컬 preview를 생성하는 1차 end-to-end 흐름을 검증한다.
-- Constraints: 현재 앱은 로그인/회원가입 UI 중심이며 실제 인증 API 연결 전 단계다. 백엔드는 BFF, API Gateway, User Service의 인증 계약이 존재한다. 엔진은 전체 아키텍처와 일부 audio-ingest 구현이 존재하며, 나머지 엔진은 문서 기준 MVP 범위가 정의되어 있다.
-- Success criteria: baseline과 target은 아직 실제 사용자/처리 데이터가 없어 가정이 필요하다. MVP에서는 activation, job completion, processing reliability, preview quality, safety block rate를 우선 측정한다.
+- Target users: J-POP, 우타이테, 보컬 곡을 배우는 음악 학습자와 이를 지도하는 보컬/음악 교육자
+- Problem: 학습자는 한 곡을 연습하면서 자신의 음정, 박자, 발음, 표현이 원곡 또는 목표 보컬과 얼마나 다른지 객관적으로 파악하기 어렵다. 교육자는 학생의 녹음물을 반복해서 듣고 피드백해야 하며, 구간별 문제를 빠르게 시각화하고 설명할 도구가 부족하다.
+- Goal: 내부 alpha에서 사용자가 본인 음성으로 부른 J-POP/우타이테 한 곡 단위 입력을 업로드하고, 시스템이 분석/정렬/피치/타이밍/평가를 수행해 학습 피드백과 보컬 preview 가능성을 검증한다.
+- Constraints: 현재 앱은 로그인/회원가입 UI 중심이며 실제 인증 API 연결 전 단계다. 백엔드는 BFF, API Gateway, User Service의 인증 계약이 존재한다. 엔진은 전체 아키텍처와 일부 audio-ingest 구현이 존재하며, 나머지 엔진은 문서 기준 MVP 범위가 정의되어 있다. 한 곡 단위 입력은 처리 시간, 비용, chunking, 품질 일관성에 대한 기술 검토가 필요하다.
+- Success criteria: baseline과 target은 아직 실제 사용자/처리 데이터가 없어 가정이 필요하다. 내부 alpha에서는 activation, song-level job completion, processing reliability, learning feedback usefulness, safety block rate를 우선 측정한다.
 
 ### Known Facts
 
@@ -27,17 +27,19 @@
 
 ### Assumptions
 
-- 1차 MVP의 핵심 검증은 "상업 출시 품질의 완성 보컬"이 아니라 "짧은 입력을 끝까지 처리해 사용자가 preview를 듣고 가능성을 판단하는 경험"이다.
-- MVP 입력 길이는 짧은 monophonic voice phrase 중심으로 제한한다.
-- 초기 target voice는 사용자 본인 업로드 보이스 또는 시스템이 허용한 단일 기본 보이스 모델로 제한한다.
-- 외부 배포, 상업 이용, 제3자 음성 복제는 MVP 범위에서 제외하거나 Safety Rights에서 차단한다.
+- 1차 MVP의 핵심 검증은 "상업 출시 품질의 완성 보컬"이 아니라 "학습자와 교육자가 한 곡 연습 결과를 이해하고 개선점을 찾을 수 있는 분석/피드백 경험"이다.
+- 제품 목표 입력 길이는 J-POP 또는 우타이테 노래 한 곡 기준이다. 단, 내부 alpha에서는 한 곡 처리의 기술 검토를 포함하며, 필요하면 chunk 단위 처리와 단계별 품질 검증으로 시작한다.
+- 보이스 사용 정책은 사용자 본인 음성만 허용한다.
+- 외부 배포, 상업 이용, 제3자 음성 복제는 MVP 범위에서 제외하고 Safety Rights에서 차단한다.
+- 1차 산출물을 "노래처럼 들리는 preview"로 둘지, "피치/타이밍/발음 학습 리포트"로 둘지는 아직 제품 결정이 필요하다. 내부 alpha에서는 두 산출물을 모두 검증하되 primary success metric은 학습 피드백 유용성으로 둔다.
 - 모바일 앱을 primary surface로 두되, Expo Web도 같은 핵심 흐름을 지원하는 방향으로 설계한다.
+- 출시 형태는 내부 alpha다.
 
 ### Risks
 
-- 보컬 합성 품질이 낮으면 사용자는 end-to-end 흐름이 완성되어도 제품 가치를 느끼지 못할 수 있다.
+- 보컬 합성 품질이 낮아도 학습 리포트가 유용하면 alpha 가치는 있을 수 있다. 반대로 리포트가 약하면 preview 품질만으로는 교육 제품의 가치를 설명하기 어렵다.
 - 권리/동의 정책이 약하면 제품 리스크가 기술 리스크보다 커질 수 있다.
-- 전체 엔진을 한 번에 MVP로 묶으면 scope creep이 발생할 가능성이 높다.
+- 한 곡 단위 입력은 처리 시간, 비용, 메모리, 엔진 간 artifact 크기, 오류 복구 난이도를 크게 키울 수 있다.
 - 현재 인증 UI와 백엔드 인증 계약 사이의 실제 연동이 완료되지 않으면 upload/conversion 흐름의 사용자 식별과 audit이 막힌다.
 
 ### Recommended Next Skill
@@ -47,40 +49,41 @@
 
 ## Executive Summary
 
-Vox2Vocal MVP는 사용자가 짧은 음성 또는 가이드 보컬을 업로드하면, 시스템이 이를 내부 표준 오디오로 변환하고, 발화/피치/타이밍/멜로디 정보를 분석한 뒤, 단일 보이스 기반의 짧은 보컬 preview를 생성해 사용자가 듣고 다운로드할 수 있게 하는 1차 제품이다.
+Vox2Vocal MVP는 음악 학습자와 음악 교육자가 J-POP, 우타이테, 보컬 곡 한 곡 단위의 연습 녹음을 업로드하면, 시스템이 본인 음성을 분석해 피치, 타이밍, 발음/음절 정렬, 표현 단서, 품질 리포트를 제공하고 보컬 preview 가능성을 검증하는 내부 alpha 제품이다.
 
-이 PRD의 목적은 "음성에서 보컬로"라는 핵심 가치가 실제 사용자 흐름에서 검증 가능한지 확인하는 것이다. 따라서 MVP는 고급 음색 변환, 상업 배포, 다중 보이스 모델, 정교한 DAW 편집 기능보다 가입, 업로드, 처리 상태 확인, preview 재생, 기본 품질 리포트, 권한 차단을 우선한다.
+이 PRD의 목적은 "내 목소리로 부른 한 곡을 학습 가능한 데이터와 들을 수 있는 결과로 바꾸는 경험"이 실제 교육 현장에서 가치가 있는지 확인하는 것이다. 따라서 MVP는 상업 배포, 다중 보이스 모델, 정교한 DAW 편집 기능보다 가입, 업로드, 처리 상태 확인, 구간별 학습 피드백, preview 재생, 기본 품질 리포트, 본인 음성 권한 차단을 우선한다.
 
 ## Problem Statement
 
-작곡가, 프로듀서, 크리에이터는 멜로디나 보컬 아이디어를 말하거나 흥얼거리는 방식으로 빠르게 떠올리지만, 이를 실제 보컬 트랙처럼 들어보려면 녹음, 피치 보정, 타이밍 보정, 보컬 합성, 믹싱을 여러 도구에서 처리해야 한다. 이 과정은 느리고 복잡하며, 기술 장벽 때문에 아이디어 검증 전환율이 낮다.
+음악을 배우는 사람은 J-POP, 우타이테, 보컬 곡을 연습할 때 자신이 어느 구간에서 음정이 흔들리는지, 박자가 밀리는지, 발음/음절 길이가 어색한지 스스로 판단하기 어렵다. 원곡을 들으며 반복 연습할 수는 있지만, 자신의 녹음이 목표와 어떻게 다른지 구간별로 확인하기에는 도구가 부족하다.
 
-Vox2Vocal은 사용자의 음성 입력을 보컬 제작 파이프라인에 넣어 "아이디어를 들을 수 있는 보컬 preview"로 바꾸는 시간을 줄여야 한다. 다만 음성 권리, 합성 품질, 처리 안정성, 사용자 기대치 관리가 동시에 해결되어야 한다.
+음악을 가르치는 사람은 학생의 연습 녹음을 듣고 반복적으로 피드백해야 한다. 그러나 수업 시간은 제한적이고, 피치/리듬/발음 문제를 시각적 근거와 함께 설명하는 과정은 수작업에 가깝다. Vox2Vocal은 본인 음성 기반 분석과 preview를 통해 학습자에게는 연습 방향을, 교육자에게는 피드백 근거를 제공해야 한다.
 
 ## Target Users
 
-- Primary: 보컬 멜로디 아이디어를 빠르게 데모로 듣고 싶은 작곡가, 프로듀서, 싱어송라이터
-- Secondary: 보컬 녹음 전 가사/멜로디 스케치를 확인하려는 콘텐츠 크리에이터
-- Internal/early users: 엔진 품질을 검증하고 회귀 테스트를 수행하는 개발자, QA, 제품팀
+- Primary: J-POP, 우타이테, 애니송, 보컬 곡을 배우는 음악 학습자
+- Secondary: 학생의 보컬 연습을 지도하는 음악 교사, 보컬 트레이너, 온라인 강사
+- Internal alpha users: 제품팀, 엔진 개발자, QA, 제한된 음악 교육 협력자
 
 ## Goals
 
 - 사용자가 계정을 만들고 로그인한 상태에서 오디오 변환 작업을 생성할 수 있다.
-- 사용자가 `wav` 또는 `mp3` 짧은 음성/가이드 보컬 파일을 업로드할 수 있다.
+- 사용자가 `wav` 또는 `mp3` 형식의 본인 보컬 연습 파일을 업로드할 수 있다.
+- 내부 alpha에서 J-POP/우타이테 한 곡 단위 입력 처리의 기술 가능성과 병목을 검토할 수 있다.
 - 시스템이 업로드 파일을 표준 오디오 asset으로 변환하고 처리 상태를 추적할 수 있다.
-- 시스템이 짧은 monophonic phrase 기준으로 pitch, timing, melody 정보를 생성할 수 있다.
-- 시스템이 단일 보이스 기반 preview vocal track을 생성하고 사용자가 재생/다운로드할 수 있다.
+- 시스템이 곡 단위 입력에서 구간별 pitch, timing, melody, alignment, quality 정보를 생성할 수 있다.
+- 시스템이 학습자가 이해할 수 있는 피드백 리포트와 본인 음성 기반 preview를 제공할 수 있다.
 - 모든 변환 요청은 사용자 권한과 보이스 사용 정책을 통과해야 하며 audit 가능한 기록을 남긴다.
 - 사용자는 실패 이유와 재시도 가능 여부를 이해할 수 있다.
 
 ## Non-goals
 
 - 제3자 유명인, 아티스트, 캐릭터 보이스 복제 지원
-- 사용자가 업로드하지 않았거나 동의가 확인되지 않은 target voice model 사용
+- 사용자가 직접 업로드한 본인 음성이 아닌 보이스 모델 사용
 - 상업 배포 라이선스, 정산, 마켓플레이스 기능
 - DAW 수준의 waveform 편집, MIDI editor, 멀티트랙 믹싱
-- 긴 곡 전체 변환, polyphonic input 처리, 실시간 변환
-- 여러 언어 전체 지원. MVP는 한국어 중심으로 가정한다.
+- 실시간 변환, 라이브 레슨 스트리밍, 반주 포함 멀티트랙 믹싱
+- 모든 장르와 모든 언어의 완전 지원. MVP는 J-POP/우타이테 학습 맥락을 우선한다.
 - 고급 expression control, voice conversion, custom voice training
 
 ## Scope
@@ -89,21 +92,22 @@ Vox2Vocal은 사용자의 음성 입력을 보컬 제작 파이프라인에 넣�
 
 - 이메일/비밀번호 기반 회원가입, 로그인, 현재 사용자 조회
 - 모바일 앱 및 웹에서 인증 후 MVP 작업 화면 접근
-- 오디오 업로드: `wav`, `mp3`, 짧은 monophonic voice phrase
-- 입력 metadata: 곡/작업명, 언어, BPM, key, 가사 또는 대본 텍스트
+- 오디오 업로드: `wav`, `mp3`, 사용자 본인 보컬 연습 파일
+- 입력 길이 목표: J-POP/우타이테 노래 한 곡 기준. 내부 alpha에서는 기술 검토 결과에 따라 chunk 단위 처리, 구간별 처리, 또는 길이 제한을 둘 수 있다.
+- 입력 metadata: 곡/작업명, 언어, BPM, key, 가사 또는 대본 텍스트, 원곡/목표곡 정보
 - Audio Ingest: 표준 PCM/WAV 변환, mono 변환, 무음 탐지, 발화 구간 timestamp 생성
 - Voice Analysis: RMS energy, 발화 속도, 휴지 구간, 강세 후보 timestamp
 - Voice Pitch: F0 추출, confidence filtering, MIDI note 변환, JSON 결과
 - Phoneme Alignment: 한국어 음절 단위 정렬, word boundary, alignment confidence
 - Rhythm Timing: 고정 BPM 기준 1/4, 1/8, 1/16 grid 정렬과 duration 생성
 - Melody Mapping: MIDI note sequence, key 기반 보정, note sequence JSON
-- Singing Synthesis: 단일 보이스 모델 기반 짧은 vocal phrase acoustic feature 생성
+- Singing Synthesis: 사용자 본인 음성 기반 vocal preview 가능성 검증
 - Vocoder Render: offline wav render, clipping report
 - Mix Master: vocal-only EQ/compressor/limiter, loudness normalization, wav output
-- Evaluation: pitch deviation, timing deviation, clipping 탐지, 엔진별 JSON 비교
-- Safety Rights: 사용자 본인 업로드 보이스만 허용, target model 소유권 확인, conversion audit log
+- Evaluation: pitch deviation, timing deviation, clipping 탐지, 구간별 학습 피드백, 엔진별 JSON 비교
+- Safety Rights: 사용자 본인 업로드 보이스만 허용, conversion audit log
 - 작업 상태 화면: queued, processing, completed, failed
-- 결과 화면: preview 재생, 다운로드, 기본 품질 리포트, 실패 사유
+- 결과 화면: 구간별 학습 리포트, preview 재생, 다운로드, 기본 품질 리포트, 실패 사유
 
 ### Out Of Scope
 
@@ -115,16 +119,20 @@ Vox2Vocal은 사용자의 음성 입력을 보컬 제작 파이프라인에 넣�
 - 고급 vocal editing UI
 - model training pipeline
 - 운영자 관리 콘솔
+- 제3자 보이스 모델 선택, 타인 음성 변환, 캐릭터/아티스트 보이스 복제
+- 내부 alpha 단계의 공개 출시 또는 외부 배포 기능
 
 ## User Stories
 
-- As a new creator, I want to sign up and log in so that my uploaded voice assets and conversion jobs are tied to my account.
-- As a creator, I want to upload a short voice or guide vocal file so that I can turn an idea into a vocal preview.
-- As a creator, I want to enter BPM, key, language, and lyrics so that the generated vocal aligns with my musical intent.
-- As a creator, I want to see processing progress and failure reasons so that I know whether to wait, retry, or change the input.
-- As a creator, I want to preview and download the generated vocal wav so that I can judge whether the idea is worth developing.
-- As a creator, I want unsafe or unauthorized voice usage to be blocked clearly so that I understand what is allowed.
-- As a product/engineering team member, I want evaluation metrics and engine artifacts so that I can debug quality regressions.
+- As a music learner, I want to sign up and log in so that my practice recordings and feedback reports are tied to my account.
+- As a music learner, I want to upload my own J-POP or utaite practice recording so that I can understand how my singing differs from the target song.
+- As a music learner, I want to enter or confirm song metadata such as BPM, key, language, and lyrics so that the analysis can align to the song correctly.
+- As a music learner, I want to see pitch, timing, syllable alignment, and quality feedback by section so that I know what to practice next.
+- As a music learner, I want to preview the processed result in my own voice so that I can hear the intended correction direction.
+- As a music teacher, I want to review a student's report quickly so that I can explain specific practice priorities during a lesson.
+- As a music teacher, I want failed or low-confidence sections to be visible so that I know where manual review is needed.
+- As a user, I want unauthorized voice usage to be blocked clearly so that I understand that only my own voice is allowed.
+- As a product/engineering team member, I want evaluation metrics and engine artifacts so that I can debug quality regressions and full-song processing bottlenecks.
 
 ## Functional Requirements
 
@@ -145,8 +153,8 @@ Vox2Vocal은 사용자의 음성 입력을 보컬 제작 파이프라인에 넣�
 
 ### FR-003 Create Conversion Project
 
-- The user must be able to create a conversion project with title, source file, language, optional BPM, optional key, and optional lyrics.
-- MVP must require users to acknowledge that they have rights to the uploaded voice.
+- The user must be able to create a practice analysis project with title, source file, language, optional BPM, optional key, optional lyrics, and target song label.
+- MVP must require users to acknowledge that the uploaded recording contains their own voice.
 - The system must assign a project/job id before engine processing starts.
 
 ### FR-004 Upload And Audio Ingest
@@ -155,13 +163,15 @@ Vox2Vocal은 사용자의 음성 입력을 보컬 제작 파이프라인에 넣�
 - The system must reject unsupported formats with a clear reason.
 - The system must convert accepted input to a standard mono WAV/PCM asset.
 - The system must produce metadata including sample rate, channels, duration, loudness estimate, silence segments, speech/voice segments, and `audio_asset_id`.
+- The system must record original duration and estimated processing cost class so full-song processing feasibility can be reviewed during internal alpha.
+- If a full song cannot be processed in one pass, the system must use a documented chunking or section-based fallback instead of silently truncating the input.
 
 ### FR-005 Safety Rights Check
 
 - The system must verify that the user owns or is allowed to use the source audio asset.
-- MVP must allow only the user's own uploaded source voice and approved default target voice model.
-- The system must deny unauthorized target voice usage before synthesis or export.
-- Each conversion request must create an audit log with user id, source asset id, target model id, operation, decision, and policy reason.
+- MVP must allow only the user's own uploaded voice.
+- The system must deny any request that attempts to use another person's voice, a celebrity/artist voice, a character voice, or an unverified target voice model.
+- Each analysis, preview, or export request must create an audit log with user id, source asset id, operation, decision, and policy reason.
 
 ### FR-006 Voice Analysis
 
@@ -170,10 +180,11 @@ Vox2Vocal은 사용자의 음성 입력을 보컬 제작 파이프라인에 넣�
 
 ### FR-007 Pitch Extraction
 
-- The system must extract F0 frames for short monophonic input.
+- The system must extract F0 frames for vocal practice recordings.
 - The system must mark voiced/unvoiced frames and confidence score.
 - The system must convert confident F0 frames into MIDI note numbers.
-- Low-confidence segments must be surfaced in the evaluation report.
+- The system must compare detected pitch against target song notes when target melody or derived note sequence is available.
+- Low-confidence pitch segments must be surfaced in the result screen and evaluation report.
 
 ### FR-008 Text And Syllable Alignment
 
@@ -189,9 +200,10 @@ Vox2Vocal은 사용자의 음성 입력을 보컬 제작 파이프라인에 넣�
 
 ### FR-010 Vocal Synthesis And Render
 
-- The system must generate a short monophonic vocal phrase using a single approved voice model.
+- The system must generate a vocal preview using the user's own voice only, if preview generation is included in the alpha build.
 - The system must render the result as a wav file through offline vocoder rendering.
 - The render output must include clipping and loudness metadata.
+- If preview generation is not technically ready for full-song input, the system must still produce the learning feedback report and mark preview as unavailable or section-limited.
 
 ### FR-011 Basic Mix/Master
 
@@ -202,7 +214,7 @@ Vox2Vocal은 사용자의 음성 입력을 보컬 제작 파이프라인에 넣�
 ### FR-012 Job Status And Result UI
 
 - The app must show job states: `created`, `queued`, `processing`, `completed`, `failed`, `blocked`.
-- Completed jobs must show audio preview playback, download action, and basic quality report.
+- Completed jobs must show section-level learning feedback, low-confidence sections, optional audio preview playback, download action if allowed, and basic quality report.
 - Failed jobs must show stage, reason, and whether retry is allowed.
 - Blocked jobs must show policy reason without exposing sensitive policy internals.
 
@@ -211,61 +223,71 @@ Vox2Vocal은 사용자의 음성 입력을 보컬 제작 파이프라인에 넣�
 - The system must store pitch deviation, timing deviation, clipping detection, and engine artifact comparison results.
 - Each engine stage must emit structured logs tied to job id.
 - Quality reports must be available for internal review even if the user-facing version is simplified.
+- Full-song jobs must expose duration, chunk count, per-stage processing time, memory/cost class, and failed section details for technical review.
 
 ## Acceptance Criteria
 
 - Given a new user enters valid signup details and accepts terms, when they submit, then an account is created and the app receives auth tokens and user profile.
 - Given a user enters invalid email or password, when they submit signup/login, then validation errors are shown and no conversion job is created.
-- Given an authenticated user uploads a supported short `wav` or `mp3`, when the upload completes, then the system creates a conversion job and an `audio_asset_id`.
+- Given an authenticated user uploads a supported `wav` or `mp3` practice recording, when the upload completes, then the system creates a practice analysis job and an `audio_asset_id`.
+- Given an uploaded recording is song-length, when processing begins, then the system either processes it in one pass or records a documented section/chunk strategy for the job.
 - Given an unsupported file format is uploaded, when validation runs, then the user sees a clear unsupported format message.
-- Given the user does not confirm rights to the source audio, when they attempt to start conversion, then the job is blocked before engine processing.
-- Given the user selects an unauthorized target voice model, when Safety Rights runs, then the job is denied and an audit record is created.
-- Given a valid short monophonic input with required metadata, when the pipeline completes, then a wav preview is available for playback and download.
+- Given the user does not confirm the source audio is their own voice, when they attempt to start analysis or preview generation, then the job is blocked before engine processing.
+- Given the user attempts to use another person's voice or an unauthorized target voice model, when Safety Rights runs, then the job is denied and an audit record is created.
+- Given a valid practice recording with required metadata, when the pipeline completes, then a section-level learning report is available.
+- Given preview generation is enabled for the job, when the pipeline completes, then a self-voice preview is available for playback or the unavailable/section-limited state is clearly shown.
 - Given a pipeline stage fails, when the user views the job, then the failed stage, plain-language reason, and retry guidance are shown.
 - Given a completed job, when internal reviewers inspect the artifacts, then pitch deviation, timing deviation, clipping status, and stage outputs are available.
+- Given a song-length internal alpha job completes or fails, when internal reviewers inspect the artifacts, then duration, chunk count, stage timings, and failed sections are available.
 - Given mobile viewport `360 x 640`, when the user signs up, logs in, uploads, and views a result, then primary actions remain reachable without horizontal scroll.
 
 ## Success Metrics
 
 - Activation
   - Baseline: Unknown. No production usage data available.
-  - Target: At least 40% of signed-in MVP testers create one conversion job within their first session.
+  - Target: At least 40% of signed-in internal alpha testers create one practice analysis job within their first session.
   - Guardrail: Signup/login failure due to client/backend integration errors below 2% of attempts.
 - Job completion
   - Baseline: Unknown. Engine pipeline not yet fully implemented.
-  - Target: At least 70% of valid supported input jobs reach `completed` in controlled MVP testing.
-  - Guardrail: No unauthorized voice jobs reach synthesis/export.
+  - Target: At least 60% of valid supported song-length internal alpha jobs reach `completed` or `completed_with_preview_limited`.
+  - Guardrail: No unauthorized or non-self voice jobs reach analysis, preview, synthesis, or export.
 - Time to preview
   - Baseline: Unknown.
-  - Target: P50 under 3 minutes for short phrase inputs in MVP environment.
+  - Target: Needs technical validation for J-POP/utaite one-song inputs. Internal alpha must measure P50/P95 by duration and chunk count before setting a release target.
   - Guardrail: P95 processing time and failure reasons are visible internally for debugging.
-- Preview usefulness
+- Learning feedback usefulness
   - Baseline: Unknown.
-  - Target: At least 50% of testers rate the preview as useful enough to iterate on the idea.
+  - Target: At least 50% of learner/teacher alpha testers rate the section-level feedback as useful enough to guide the next practice session.
   - Guardrail: Clipping detected in fewer than 5% of completed preview outputs.
 - Quality diagnostics
   - Baseline: Unknown.
-  - Target: 100% of completed jobs include pitch/timing/clipping reports.
+  - Target: 100% of completed jobs include pitch/timing/confidence reports. Jobs with preview output also include clipping reports.
   - Guardrail: Evaluation artifact generation failure does not hide final render failure states.
 - Safety and rights
   - Baseline: Unknown.
   - Target: 100% of conversion/export requests produce an allow/deny decision and audit record.
   - Guardrail: If audit logging fails for rights-sensitive operations, the system fails closed.
+- Full-song technical feasibility
+  - Baseline: Unknown.
+  - Target: Internal alpha produces enough processing data to choose one of three paths: full-song one-pass, chunked full-song, or section-limited alpha.
+  - Guardrail: The product must not imply full-song support if only section-limited processing is technically reliable.
 
 ## Risks
 
 - Quality risk: A technically complete pipeline may still produce vocals that users find unnatural or unusable.
-- Scope risk: Attempting full voice conversion, expression, custom voices, and full-track rendering in MVP will likely delay end-to-end validation.
-- Safety risk: Voice rights and consent gaps can create product, legal, and trust risk even with a small beta.
+- Pedagogy risk: Pitch/timing numbers may be technically correct but not actionable for music learners or teachers.
+- Scope risk: Attempting full voice conversion, expression, custom voices, and full-track rendering in MVP will likely delay alpha validation.
+- Safety risk: Voice rights and consent gaps can create product, legal, and trust risk even with internal alpha testers.
 - Delivery risk: Current app is auth UI only, while upload/result screens and job orchestration are not yet visible in code.
 - Integration risk: BFF currently exposes `me`; signup/login GraphQL mutations and upload/job APIs appear not yet implemented.
 - Engine risk: Audio ingest is partially implemented, while many downstream engines are currently documented rather than implemented.
-- Metric risk: There is no real baseline for conversion completion, preview quality, or activation.
-- UX risk: Users may expect finished vocals, while MVP output may be closer to a technical preview.
+- Full-song risk: J-POP/utaite one-song inputs may exceed early engine assumptions around duration, chunking, memory, storage, and latency.
+- Metric risk: There is no real baseline for song-level completion, feedback usefulness, preview quality, or activation.
+- UX risk: Users may expect polished singing output, while alpha output may be a learning report plus limited preview.
 
 ## Dependencies
 
-- App: upload screen, job status screen, result playback/download UI, token/session integration
+- App: upload screen, job status screen, learning report screen, result playback/download UI, token/session integration
 - BFF: GraphQL mutations/queries for signup, login, create project/job, upload initiation, job status, result retrieval
 - API Gateway: orchestration APIs for auth, project/job, asset, conversion, and user context
 - User Service: account, auth, user identity, role/status
@@ -273,31 +295,35 @@ Vox2Vocal은 사용자의 음성 입력을 보컬 제작 파이프라인에 넣�
 - Queue/Eventing: NATS JetStream for audio/engine pipeline events, Redis/BullMQ if used for app-facing async jobs
 - Engines: audio ingest, voice analysis, voice pitch, phoneme alignment, rhythm timing, melody mapping, singing synthesis, vocoder render, mix master, evaluation, safety rights
 - Infra: PostgreSQL, Redis, NATS, local or object storage, Kubernetes deployments, structured logs
-- Policy: terms, privacy policy, voice rights consent, audit retention, allowed/disallowed target voice model policy
+- Policy: terms, privacy policy, own-voice consent, audit retention, disallowed voice-use policy
+- Music domain inputs: target song metadata, lyrics handling, BPM/key source, reference/target alignment policy
 
 ## Open Questions
 
 ### Product And User
 
-- MVP의 첫 타깃은 작곡가/프로듀서인가, 일반 크리에이터인가, 아니면 내부 기술 검증 사용자/베타 테스터인가?
-- 사용자가 기대하는 1차 산출물은 "노래처럼 들리는 preview"인가, "피치/멜로디 변환 가능성 리포트"인가?
+- 내부 alpha의 사용자 구성은 음악 학습자와 음악 교육자 각각 몇 명으로 둘 것인가?
+- 사용자가 기대하는 1차 산출물은 "노래처럼 들리는 self-voice preview"인가, "피치/타이밍/발음 학습 리포트"인가, 아니면 둘 다인가?
+- 학습자용 화면과 교육자용 화면을 같은 결과 화면으로 시작할 것인가, 역할별로 다르게 보여줄 것인가?
 - 한국어만 MVP로 고정할 것인가, 영어/일본어 등도 early scope에 넣을 것인가?
-- 사용자가 직접 부른/말한 본인 음성만 입력하게 할 것인가, 가이드 멜로디/반주/레퍼런스 보컬도 같은 flow에서 받을 것인가?
+- J-POP/우타이테 학습 맥락에서 일본어 가사 정렬은 내부 alpha에 포함할 것인가, 아니면 한국어/로마자/가사 미입력 fallback부터 시작할 것인가?
+- 원곡/목표곡 reference audio를 받을 것인가, 아니면 사용자가 부른 본인 음성만 먼저 받을 것인가?
 - 사용자가 입력해야 하는 최소 metadata는 무엇인가: BPM, key, lyrics, language 중 무엇을 필수로 둘 것인가?
 
 ### Safety And Policy
 
-- 기본 보이스 모델을 제공할 것인가, 아니면 MVP는 사용자 본인 보이스만 허용할 것인가?
-- 보이스 권리 확인은 단순 checkbox로 시작할 것인가, 녹음 동의/보이스 소유 인증 flow가 필요한가?
-- 결과물 다운로드와 외부 공유는 MVP에서 허용할 것인가?
+- 본인 음성 확인은 내부 alpha에서 단순 checkbox로 충분한가, 아니면 녹음 동의/보이스 소유 인증 flow가 필요한가?
+- 결과물 다운로드는 내부 alpha에서 허용할 것인가, 아니면 앱 내 재생만 허용할 것인가?
+- 외부 공유는 내부 alpha에서 차단할 것인가?
 - audit log 보관 기간과 접근 권한은 누가 결정하는가?
 
 ### Quality And Metrics
 
-- "사용 가능한 preview"의 품질 기준은 무엇인가: 사용자 평점, pitch deviation, timing deviation, 재생 완료율, 다운로드율 중 무엇을 primary metric으로 볼 것인가?
-- MVP에서 허용 가능한 처리 시간은 몇 분인가?
-- 짧은 phrase의 최대 길이는 10초, 30초, 60초 중 어디까지인가?
+- "학습에 유용한 결과"의 기준은 무엇인가: teacher rating, learner rating, pitch deviation 이해도, practice 재시도율, report 재방문율 중 무엇을 primary metric으로 볼 것인가?
+- J-POP/우타이테 한 곡 입력에서 허용 가능한 처리 시간은 몇 분인가?
+- 한 곡 기준은 평균 3-5분 곡 전체인가, 1절/후렴 같은 구간 단위도 alpha 성공으로 볼 것인가?
 - 결과가 나쁘더라도 job은 `completed`로 볼 것인가, quality threshold 미달이면 `failed` 또는 `needs_review`로 볼 것인가?
+- preview 품질이 낮아도 학습 리포트가 좋으면 alpha success로 볼 것인가?
 
 ### Technical Scope
 
@@ -306,18 +332,22 @@ Vox2Vocal은 사용자의 음성 입력을 보컬 제작 파이프라인에 넣�
 - NATS 기반 엔진 이벤트와 앱-facing job status를 어떤 저장소/서비스에서 동기화할 것인가?
 - 현재 `worker`의 Redis/BullMQ 역할과 NATS 기반 engine pipeline 역할을 어떻게 나눌 것인가?
 - downstream 엔진이 아직 구현되지 않은 단계에서는 mock engine, stub output, or partial pipeline 중 어떤 방식으로 UX를 검증할 것인가?
+- 한 곡 입력을 one-pass로 처리할 것인가, chunked pipeline으로 처리할 것인가?
+- chunking을 한다면 사용자에게 곡 전체 결과로 보여줄 병합 기준은 무엇인가?
 
 ### Launch
 
-- MVP는 내부 alpha, closed beta, public beta 중 무엇인가?
-- 법무/보안 검토 없이 허용 가능한 사용자 수와 데이터 보관 범위는 어디까지인가?
+- 내부 alpha에서 허용 가능한 사용자 수와 데이터 보관 범위는 어디까지인가?
 - 실패한 작업의 원본 오디오는 보관할 것인가, 즉시 삭제할 것인가?
 
 ## Assumptions
 
 - 이 PRD는 코드와 문서 기반의 제품 초안이며, 실제 고객 인터뷰나 analytics baseline은 아직 반영되지 않았다.
-- MVP는 짧은 phrase 중심으로 제한해 품질/속도/권리 리스크를 낮춘다.
+- MVP의 제품 목표는 J-POP/우타이테 노래 한 곡 기준이지만, 내부 alpha에서는 기술 검토 결과에 따라 chunked full-song 또는 section-limited alpha로 축소될 수 있다.
+- 주요 사용자는 음악 학습자와 음악 교육자다.
+- 사용자 본인 음성만 허용한다.
+- 출시 형태는 내부 alpha다.
 - Safety Rights는 feature가 아니라 launch gate로 취급한다.
 - 앱은 모바일 first이지만, Expo Web에서도 핵심 flow를 유지한다.
 - 현재 구현 상태를 기준으로 auth 연동, upload/job API, result UI, engine orchestration이 주요 신규 개발 범위다.
-- PRD 승인 전에는 target user, 입력 길이, 기본 보이스 정책, success metric target을 반드시 확정해야 한다.
+- PRD 승인 전에는 primary output definition, full-song 처리 방식, success metric target을 반드시 확정해야 한다.
