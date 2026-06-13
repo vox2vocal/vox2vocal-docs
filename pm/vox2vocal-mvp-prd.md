@@ -1,6 +1,6 @@
 # Vox2Vocal MVP PRD Draft
 
-문서 버전: v0.9  
+문서 버전: v0.10  
 작성일: 2026-06-13  
 상태: 초안  
 작성 기준: `pm-context` + `prd-writer` skill 기준, `prd-reviewer` readiness pass 반영
@@ -29,7 +29,7 @@
 
 - Self-voice preview의 alpha 성공 기준은 "내 목소리처럼 들림"을 primary rating으로 둔다.
 - 내부 alpha 사용자 규모는 학습자 10명, 교육자 2명으로 둔다.
-- P0 alpha는 Ken Kamikita의 `Mist` 전체 section map을 song package에 등록하고, 첫 target section은 `chorus_1`로 둔다.
+- P0 alpha는 Ken Kamikita의 `Mist` 전체 section map을 song package에 등록하고, 1차 target section은 `intro`로 둔다.
 - 내부 alpha에서는 한 곡 전체가 아니어도 target section 단위 preview/분석이 성공하면 alpha success 후보로 인정할 수 있다.
 - 목표 음정 기준은 원곡 음원 분석과 엔진이 추정한 note sequence를 함께 사용한다.
 - 내부 alpha에서 노래/reference audio는 관리자만 등록한다. 학습자는 관리자 등록 곡을 선택하고 본인 보컬 연습 파일만 업로드한다.
@@ -51,26 +51,28 @@
 P0에서 기준이 되는 단위는 "후렴"만이 아니라 song package에 등록된 `section`이다. 제품/엔진 관점에서는 음악 이론적 명칭보다 관리자 song package에 등록된 `section_id`, `section_label`, `start_timestamp`, `end_timestamp`, `source_reference_asset_id`가 기준이다. 모든 timestamp는 하나의 고정된 reference audio asset의 0:00을 기준으로 한다.
 
 - P0 target song: Ken Kamikita - `Mist`
-- P0 default target section: `chorus_1`
-- P0 default target timestamp: `1:44-2:16`
-- P0 default target duration: 32초
-- 권장 target section 길이: 20-40초. `chorus_1`은 이 범위 안에 있으므로 P0 기본값으로 적합하다.
+- P0 default target section: `intro`
+- P0 default target timestamp: `0:00-0:28`
+- P0 default target duration: 28초
+- 권장 target section 길이: 20-40초. `intro`는 28초로 이 범위 안에 있으므로 P0 기본값으로 적합하다.
 - 필수 metadata: section id, section label, start timestamp, end timestamp, representative lyric cue, BPM, key, reference audio source/provenance, rights clearance status
 - P0 success 판단은 곡 전체가 아니라 선택된 target section의 self-voice preview와 pitch feedback을 기준으로 한다.
+- P0 target tradeoff: `intro`는 짧고 감정 표현이 명확해 self-voice preview 검증에는 적합하지만, 나레이션/독백 중심이라 singing pitch matching과 고음부 synthesis 대표성은 약하다. `chorus_1`은 P1 또는 두 번째 validation target 후보로 유지한다.
 
 #### Mist Section Timeline
 
 | Section ID | Time Range | Label | Notes |
 | --- | --- | --- | --- |
-| `intro` | `0:00-0:28` | Intro | 조용한 피아노 반주와 독백형 나레이션 파트. |
-| `verse_1_a` | `0:28-1:17` | 1절 A멜로 | 어쿠스틱 기타와 보컬 humming 이후 본격적인 노래가 시작되는 파트. |
-| `verse_1_b` | `1:17-1:44` | 1절 B멜로 | 드럼이 얹어지며 후렴 직전까지 감정이 고조되는 빌드업 파트. |
-| `chorus_1` | `1:44-2:16` | 1절 Chorus | 첫 번째 하이라이트. P0 default target section. |
-| `interlude` | `2:16-2:42` | Interlude | 1절 후렴 이후 2절/브릿지로 넘어가는 간주. |
-| `bridge` | `2:42-3:09` | Bridge/C멜로 | 악기가 잦아들고 마지막 후렴을 향해 에너지를 모으는 구간. |
-| `chorus_2` | `3:09-3:41` | 2절 Chorus | 두 번째 후렴. |
-| `last_chorus` | `3:41-4:18` | Last Chorus | 최종 하이라이트. 보컬 에너지가 최고조에 달하는 구간. |
-| `outro` | `4:18-4:53` | Outro | 잔잔한 피아노 여운으로 마무리되는 후주. |
+| `intro` | `0:00-0:28` | Intro / 나레이션 도입부 | 조용한 피아노 반주 위에 "날지 못하는 날개라면~" 하고 독백을 읊조리는 파트. P0 default target section. |
+| `verse_1_a_humming` | `0:28-0:42` | 1절 A멜로 1 / 허밍 파트 | 나레이션 이후 어쿠스틱 기타 반주가 들어오며 가사 없이 "아아아아~", "Uh~ Huh~" 계열의 허밍을 넣는 감성적 구간. |
+| `verse_1_a_vocal` | `0:42-1:17` | 1절 A멜로 2 / 본격 보컬 파트 | 허밍 이후 담담하고 웅얼거리듯 첫 가사를 시작하는 구간. 시작 가사: "濡れた土の匂い..." |
+| `verse_1_b` | `1:17-1:44` | 1절 B멜로 / 빌드업 | 드럼 사운드가 추가되면서 후렴구를 향해 감정을 서서히 고조시키는 구간. 시작 가사: "いつか辿った道が..." |
+| `chorus_1` | `1:44-2:16` | 1절 Chorus / 첫 번째 후렴 하이라이트 | 악기 연주가 가장 풍성해지며 감정이 폭발하는 첫 후렴구. 시작 가사: "誰かが、未来の僕らを探してる..." |
+| `interlude` | `2:16-2:42` | Interlude / 간주 | 1절이 끝나고 다음 악장으로 넘어가기 전의 연주 구간. |
+| `bridge` | `2:42-3:09` | Bridge / C멜로 | 독백하듯 다시 조용해졌다가 마지막 후렴을 위해 에너지를 응축하는 구간. 시작 가사: "手を伸ばす、淡い、淡い、あの光..." |
+| `chorus_2` | `3:09-3:41` | 2절 Chorus / 두 번째 후렴 | 다시 한번 감정이 터져 나오는 익숙한 후렴구 파트. |
+| `last_chorus` | `3:41-4:18` | Last Chorus / 최종 후렴 | 보컬의 에너지가 최고조에 달하며 감정을 거침없이 쏟아내는 마지막 하이라이트. 시작 가사: "君が歩み、耐え抜いたその最期に..." |
+| `outro` | `4:18-4:53` | Outro / 후주 | 모든 격정적인 세션이 멈추고 피아노 선율만 흐르며 여운을 남기고 마무리되는 구간. |
 
 P0에서 사용자가 다른 section을 선택하는 기능은 필수가 아니다. 단, song package schema는 향후 section 선택, section 비교, full-song merge로 확장할 수 있도록 전체 section map을 저장한다.
 
@@ -160,7 +162,7 @@ P0 threshold는 alpha 운영 중 조정될 수 있지만, engineering handoff와
 
 | Area | P0 Threshold | Behavior |
 | --- | --- | --- |
-| Target section duration | 20-40초 권장, `chorus_1`은 32초 | 20초 미만은 학습 가치 부족 후보, 40초 초과는 처리 안정성 리스크로 review |
+| Target section duration | 20-40초 권장, `intro`는 28초 | 20초 미만은 학습 가치 부족 후보, 40초 초과는 처리 안정성 리스크로 review |
 | Upload hard max | 60초 | 초과 시 full-song 처리하지 않고 trim/section 선택 요청 |
 | Section length tolerance | target duration 대비 `±5초` 또는 `±20%` 중 더 큰 값 | tolerance 밖이면 section mismatch warning 또는 trim 요청 |
 | Pitch frame confidence trusted | `>= 0.70` | scoring과 feedback에 사용 가능 |
@@ -229,7 +231,7 @@ Output availability is tracked separately from job state:
 - 1차 산출물은 "내 목소리가 보정/생성된 노래를 들어보는 self-voice song preview"다.
 - 2차 산출물은 현재 내 목소리의 음정과 노래에 필요한 목표 음정이 얼마나 맞는지 보여주는 pitch matching feedback이다.
 - 3차 산출물인 진성, 비성, 두성 등 발성/공명 유형 후보와 confidence는 P0에서 제외하고 P1 이후 실험으로 둔다.
-- 내부 alpha에서 section-limited preview는 허용 가능한 성공 상태다. P0 default target은 `chorus_1`이지만, 제품 모델은 전체 song section map을 기준으로 한다.
+- 내부 alpha에서 section-limited preview는 허용 가능한 성공 상태다. P0 default target은 `intro`이지만, 제품 모델은 전체 song section map을 기준으로 한다.
 - 학습자는 원곡/reference audio를 직접 업로드하지 않고 관리자 등록 곡을 선택한다.
 - 내부 alpha는 속도보다 안정적 성공 여부를 우선 검증한다. 추후에는 안정성과 속도를 모두 제품 품질 기준으로 둔다.
 - 추후 다른 프로젝트에서는 같은 song package/metadata ingestion 엔진을 재사용해 외부 사용자가 노래를 업로드하는 확장 가능성을 열어둔다.
@@ -301,7 +303,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist` target section을
 
 - 관리자 수동 song package 등록: Ken Kamikita - `Mist`를 기준으로 title, artist, language, BPM, key, reference audio, source/provenance, rights clearance status, usage status, section map, target section start/end를 필수로 등록한다.
 - 학습자 곡 선택 및 본인 보컬 업로드: 학습자는 관리자 등록 곡만 선택하고, 본인 보컬 연습 파일만 업로드한다.
-- Section-first processing: 내부 alpha는 `chorus_1` target section에서 self-voice preview, pitch comparison, quality report가 안정적으로 생성되면 성공 후보로 본다.
+- Section-first processing: 내부 alpha는 `intro` target section에서 self-voice preview, pitch comparison, quality report가 안정적으로 생성되면 성공 후보로 본다.
 - Pitch-first processing: 가사 sync는 P1 실험 범위로 두고, P0는 pitch target extraction과 pitch comparison을 우선한다.
 - App-only preview: generated preview와 reference audio는 앱 내 재생만 허용하고 다운로드/export/share를 차단한다.
 - Safety and audit: 본인 음성 확인, rights decision, operation audit log, raw audio retention decision을 job 단위로 기록한다.
@@ -323,9 +325,9 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist` target section을
 - 이메일/비밀번호 기반 회원가입, 로그인, 현재 사용자 조회
 - 모바일 앱 및 웹에서 인증 후 MVP 작업 화면 접근
 - 오디오 업로드: `wav`, `mp3`, 사용자 본인 보컬 연습 파일
-- 관리자 song package 등록: pitch target 추출과 비교 분석 목적의 원곡/reference audio, metadata, BPM, key, section map 정보를 등록. P0에서는 Ken Kamikita - `Mist` 수동 등록과 `chorus_1` target section을 기준으로 하며 provider 자동화와 lyrics sync는 P1 실험 범위로 둔다.
+- 관리자 song package 등록: pitch target 추출과 비교 분석 목적의 원곡/reference audio, metadata, BPM, key, section map 정보를 등록. P0에서는 Ken Kamikita - `Mist` 수동 등록과 `intro` target section을 기준으로 하며 provider 자동화와 lyrics sync는 P1 실험 범위로 둔다.
 - 학습자 곡 선택: 학습자는 관리자 등록 곡을 선택하고 본인 보컬 연습 파일만 업로드
-- 입력 길이 목표: `Mist` target section 기준 20-40초. P0 default `chorus_1`은 32초다. P0에서는 전체 곡 입력을 요구하지 않는다.
+- 입력 길이 목표: `Mist` target section 기준 20-40초. P0 default `intro`는 28초다. P0에서는 전체 곡 입력을 요구하지 않는다.
 - 입력 metadata: 곡/작업명, 언어, BPM, key, 원곡/목표곡 정보, section id, section label, target section start/end
 - Audio Ingest: 표준 PCM/WAV 변환, mono 변환, 무음 탐지, 발화 구간 timestamp 생성
 - Voice Pitch: target section F0 추출, confidence filtering, MIDI note 변환, target pitch 비교 JSON
@@ -383,7 +385,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist` target section을
 
 - The learner must be able to create a practice analysis project by selecting an admin-registered song package and uploading their own vocal practice recording.
 - The selected P0 song package must be Ken Kamikita - `Mist` and provide default language, BPM, key, reference audio, rights clearance status, section map, and default target section metadata. Lyrics are optional in P0.
-- The default P0 target section must be `chorus_1` with timestamp `1:44-2:16` against the registered reference audio asset.
+- The default P0 target section must be `intro` with timestamp `0:00-0:28` against the registered reference audio asset.
 - The learner may edit BPM and key defaults when correction controls are enabled.
 - MVP must require users to acknowledge that the uploaded recording contains their own voice and consent to analysis/preview generation before engine processing starts.
 - The system must assign a project/job id before engine processing starts.
@@ -514,7 +516,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist` target section을
 - Given a new user enters valid signup details and accepts terms, when they submit, then an account is created and the app receives auth tokens and user profile.
 - Given a user enters invalid email or password, when they submit signup/login, then validation errors are shown and no conversion job is created.
 - Given an admin creates the Ken Kamikita - `Mist` P0 song package, when title, artist, language, BPM, key, reference audio, source/provenance, rights clearance status, usage status, section map, or target section start/end is missing, then the package cannot be published to learners.
-- Given an admin creates the `Mist` P0 song package with required metadata, reference audio, source/provenance, rights clearance status, usage status, section map, and default target section `chorus_1` at `1:44-2:16`, when validation passes, then learners can select that section package in the alpha app.
+- Given an admin creates the `Mist` P0 song package with required metadata, reference audio, source/provenance, rights clearance status, usage status, section map, and default target section `intro` at `0:00-0:28`, when validation passes, then learners can select that section package in the alpha app.
 - Given reference audio rights are uncertain, blocked, expired, or missing review, when an admin tries to publish the song package, then the package enters `rights_blocked` and cannot be selected by learners.
 - Given a rights complaint is received for a reference asset, when the policy owner marks the asset under review, then learner playback/processing for that asset and its generated previews is blocked until resolved.
 - Given an authenticated user uploads a supported `wav` or `mp3` target section practice recording, when the upload completes, then the system creates a P0 section preview job and an `audio_asset_id`.
@@ -543,7 +545,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist` target section을
 
 ## Alpha Readiness Criteria
 
-- Build can start when the team registers Ken Kamikita - `Mist`, confirms the full section map, sets `chorus_1` as `1:44-2:16`, and confirms required song package metadata.
+- Build can start when the team registers Ken Kamikita - `Mist`, confirms the full section map, sets `intro` as `0:00-0:28`, and confirms required song package metadata.
 - Build can start when the canonical P0 job state owner and the app-facing job status contract are agreed.
 - Build can start when Safety Rights has an alpha policy for separated consent, blocked jobs, audit logging, and app-only playback.
 - Build can start when reference audio source/provenance, rights clearance status, usage status, retention period, and deletion owner are recorded and reviewable.
@@ -572,7 +574,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist` target section을
 - Pitch matching usefulness
   - Baseline: Unknown.
   - Target: At least 5 of 10 learner alpha testers say the current-vs-target pitch feedback helps identify what to practice next.
-  - Guardrail: Low-confidence pitch sections and disagreement between reference-audio target extraction and engine-derived note sequence must be clearly labeled and excluded from overconfident scores.
+  - Guardrail: Low-confidence pitch sections and disagreement between reference-audio target extraction and engine-derived note sequence must be clearly labeled and excluded from overconfident scores. Because `intro` is narration-heavy, speech-like pitch ranges must not be over-scored as singing pitch accuracy.
 - Failure reason tagging quality
   - Baseline: Unknown.
   - Target: 100% of ratings below 4 include at least one failure reason tag or `other`.
@@ -598,6 +600,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist` target section을
 
 - Preview quality risk: A technically complete pipeline may still produce self-voice previews that users find unnatural, robotic, off-pitch, or not recognizably their own voice.
 - Pedagogy risk: Pitch/timing numbers may be technically correct but not actionable for music learners or teachers.
+- Intro target risk: `intro` is narration-heavy, so it validates self-voice preview and app flow better than singing pitch matching or high-energy chorus synthesis.
 - Failure-tag risk: User-selected failure tags may describe symptoms, not true technical root cause, so internal technical tagging is still needed.
 - Reference audio risk: Using a real song as reference improves pitch target extraction but introduces copyright, provider-terms, storage, retention, and access-control risk.
 - Rights clearance risk: If source/provenance, rights clearance status, usage status, or deletion owner is weak, even internal alpha can become unsafe to operate.
@@ -632,7 +635,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist` target section을
 
 ### Product And User
 
-- `Mist` section map의 timestamp를 현재 v0.9 기준으로 확정할 것인가, 아니면 reference audio asset 검수 후 조정할 것인가?
+- `Mist` section map의 timestamp를 현재 v0.10 기준으로 확정할 것인가, 아니면 reference audio asset 검수 후 조정할 것인가?
 - 학습자용 화면과 교육자용 화면을 같은 결과 화면으로 시작할 것인가, 역할별로 다르게 보여줄 것인가?
 - 관리자 song package의 P0 필수 metadata 외에 lyrics, section lyrics, provider id, album/artwork 등을 언제부터 요구할 것인가?
 
@@ -671,7 +674,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist` target section을
 - MVP의 장기 제품 목표는 J-POP/우타이테 노래 한 곡 기준이지만, P0 내부 alpha는 `Mist` target section으로 제한한다.
 - 주요 사용자는 음악 학습자와 음악 교육자다.
 - 내부 alpha 사용자 규모는 학습자 10명과 교육자 2명이다.
-- P0 alpha는 Ken Kamikita - `Mist` section map, `chorus_1` default target section, 관리자 수동 song package 등록, pitch-first processing, section-first preview를 기준으로 build한다.
+- P0 alpha는 Ken Kamikita - `Mist` section map, `intro` default target section, 관리자 수동 song package 등록, pitch-first processing, section-first preview를 기준으로 build한다.
 - 외부 provider 기반 metadata/lyrics 자동화, lyrics sync, full-song merge는 P1 실험 범위로 둔다.
 - 사용자 본인 음성만 허용한다.
 - 1차 가치는 내 목소리가 보정/생성된 노래를 들어보는 self-voice preview다.

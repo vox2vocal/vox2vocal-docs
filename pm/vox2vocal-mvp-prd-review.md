@@ -1,19 +1,23 @@
 # Vox2Vocal MVP PRD 리뷰
 
-리뷰 대상 문서: `pm/vox2vocal-mvp-prd.md` v0.9  
+리뷰 대상 문서: `pm/vox2vocal-mvp-prd.md` v0.10  
 리뷰 기준: `prd-reviewer` skill  
 리뷰일: 2026-06-13
 
 ## 판정
 
 - 상태: P0 내부 alpha는 조건부 Go, 전체 곡/productized build는 No-go.
-- 한 줄 판단: PRD가 `Mist`를 section map 기반으로 재정의하고 `chorus_1`을 `1:44-2:16` P0 target으로 고정한 것은 통과다. 다만 reference audio 권리 승인, P0 job state owner, upload/storage 계약, deletion owner, 최소 엔진 경로가 확정되기 전에는 build start가 여전히 위험하다.
+- 한 줄 판단: PRD가 `Mist`를 section map 기반으로 재정의하고 `intro`를 `0:00-0:28` P0 target으로 고정한 것은 반영됐다. 다만 Intro는 나레이션 중심이라 self-voice preview 검증에는 좋지만 singing pitch matching 대표성은 약하며, reference audio 권리 승인, P0 job state owner, upload/storage 계약, deletion owner, 최소 엔진 경로가 확정되기 전에는 build start가 여전히 위험하다.
 
 ## 핵심 이슈
 
 - 이슈: `Mist` section timestamp는 제안되었지만, 실제 등록할 reference audio asset 기준으로 검수되어야 한다.
 - 중요한 이유: 동일 곡이라도 플랫폼/앨범/업로드 버전에 따라 intro 길이가 달라질 수 있다. timestamp가 reference asset과 어긋나면 pitch target, upload validation, preview QA가 모두 흔들린다.
 - 심각도: High.
+
+- 이슈: P0 target이 `intro`로 바뀌면서 pitch matching 검증 대표성이 낮아졌다.
+- 중요한 이유: `intro`는 나레이션/독백 중심이라 "내 목소리처럼 들림"과 app flow 검증에는 적합하지만, J-POP singing pitch, 고음부 synthesis, 후렴 감정 표현 검증은 약하다.
+- 심각도: Medium.
 
 - 이슈: reference audio rights clearance owner와 승인 기준이 아직 비어 있다.
 - 중요한 이유: 실제 노래를 reference로 쓰는 제품은 저작권, provider 약관, storage, deletion 리스크가 핵심 blocker다. `rights_blocked` 정책은 생겼지만 누가 어떤 evidence로 승인할지 정해야 한다.
@@ -37,8 +41,11 @@
 
 ## 권장 수정
 
-- 수정: `Mist` section map을 실제 reference audio asset 기준으로 검수하고 `chorus_1 = 1:44-2:16`을 확정 또는 조정한다.
+- 수정: `Mist` section map을 실제 reference audio asset 기준으로 검수하고 `intro = 0:00-0:28`을 확정 또는 조정한다.
 - 필요한 owner 또는 결정: Product + 음악 교육 전문가 + engine owner.
+
+- 수정: `intro` P0 성공 기준에서 pitch matching을 보조 지표로 낮추고, `chorus_1` 또는 `verse_1_a_humming`을 P1/P0.5 singing validation 후보로 남긴다.
+- 필요한 owner 또는 결정: Product + engine owner + 음악 교육 전문가.
 
 - 수정: reference audio source/provenance, rights clearance status, allowed use, retention period, deletion owner의 승인 체크리스트를 만든다.
 - 필요한 owner 또는 결정: Product + policy/legal + platform/storage owner.
@@ -60,6 +67,9 @@
 - 질문: 현재 `Mist` section map은 실제 등록 reference audio asset 기준으로 검수됐는가?
 - 왜 막히는가: timestamp drift가 있으면 P0 결과가 재현되지 않는다.
 
+- 질문: `intro`의 나레이션 중심 특성을 감안해 pitch matching success metric을 그대로 둘 것인가, 보조 지표로 낮출 것인가?
+- 왜 막히는가: 잘못 두면 P0가 self-voice preview 검증인지 singing pitch 검증인지 혼재된다.
+
 - 질문: reference audio rights clearance 최종 승인자는 누구이며, 승인 evidence는 어디에 저장되는가?
 - 왜 막히는가: 실제 노래를 쓰는 제품에서 권리 검증은 launch gate다.
 
@@ -78,5 +88,5 @@
 ## 진행/중단 판단
 
 - 권고: P0 alpha build는 조건부 Go.
-- 진행 조건: reference asset 기준 section map 검수, rights clearance owner/evidence 확정, P0 job state owner 확정, 최소 엔진 경로 확정, failure tag UI 확정, upload/storage 계약 확정, retention/deletion owner 확정.
+- 진행 조건: reference asset 기준 section map 검수, `intro` 기준 metric 해석 확정, rights clearance owner/evidence 확정, P0 job state owner 확정, 최소 엔진 경로 확정, failure tag UI 확정, upload/storage 계약 확정, retention/deletion owner 확정.
 - No-go 조건: 권리 검증 없는 reference audio 사용, full-song, lyric sync, vocal-mode 자동 분석, provider audio ingestion, 신규 orchestrator 서비스가 P0 필수 범위로 다시 들어오는 경우.
