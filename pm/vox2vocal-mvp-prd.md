@@ -1,9 +1,9 @@
 # Vox2Vocal MVP PRD Draft
 
-문서 버전: v0.5  
-작성일: 2026-06-10  
+문서 버전: v0.7  
+작성일: 2026-06-13  
 상태: 초안  
-작성 기준: `pm-context` + `prd-writer` skill 기준
+작성 기준: `pm-context` + `prd-writer` skill 기준, `prd-reviewer` readiness pass 반영
 
 ## Context Brief
 
@@ -29,19 +29,22 @@
 
 - Self-voice preview의 alpha 성공 기준은 "내 목소리처럼 들림"을 primary rating으로 둔다.
 - 내부 alpha 사용자 규모는 학습자 10명, 교육자 2명으로 둔다.
-- 내부 alpha에서는 한 곡 전체가 아니어도 구간 단위 preview/분석이 성공하면 alpha success로 인정할 수 있다.
+- P0 alpha는 J-POP 1곡의 후렴 구간을 첫 target section으로 둔다.
+- 내부 alpha에서는 한 곡 전체가 아니어도 후렴 등 구간 단위 preview/분석이 성공하면 alpha success 후보로 인정할 수 있다.
 - 목표 음정 기준은 원곡 음원 분석과 엔진이 추정한 note sequence를 함께 사용한다.
 - 내부 alpha에서 노래/reference audio는 관리자만 등록한다. 학습자는 관리자 등록 곡을 선택하고 본인 보컬 연습 파일만 업로드한다.
 - 관리자 곡 등록은 곡명/아티스트, 원곡/reference audio, 언어, 가사, BPM, key, 구간 정보를 포함하는 song package를 만드는 흐름으로 둔다.
 - 곡명/아티스트, 언어, 가사, 음원 metadata는 YouTube, Spotify, lyrics provider 등 외부 도메인/API에서 가져올 수 있게 설계하되, 실제 provider는 라이선스와 API 이용 조건을 확인한 뒤 확정한다.
-- 가사 싱크는 AI 모델 또는 alignment engine을 사용해 원곡과 가사의 timestamp를 맞추는 방향으로 둔다.
+- P0는 pitch-first로 진행한다. 가사 sync는 P1 실험 범위로 미룬다.
 - BPM과 key는 원곡 기본값에서 가져오거나 엔진이 추정한 값을 기본값으로 사용하고, 사용자가 수정할 수 있게 한다.
 - 일본어 가사 정렬이 기술 난이도를 크게 높이면 pitch 중심 분석을 우선한다. 기술적으로 가능하면 pitch와 가사/음절 정렬을 함께 제공한다.
 - 원곡 분석과 엔진 추정 note sequence가 충돌하면 confidence 기반으로 처리하고, 신뢰도가 낮거나 충돌이 큰 구간은 강제 판정하지 않는다.
 - 진성/비성/두성 등 발성/공명 유형 분석은 내부 alpha에서 사용자용 확정 피드백이 아니라 교사/전문가 검토용 정보로 둔다.
-- 교사/전문가가 검토한 발성/공명 라벨은 추후 AI/엔진이 불특정 다수의 목소리에서도 판단할 수 있도록 학습 데이터 후보로 축적할 수 있다.
+- 교사/전문가가 검토한 발성/공명 라벨은 바로 학습에 쓰지 않고 후보 데이터로 저장한다. consent, provenance, label confidence, 교사 간 일치도를 함께 저장한다.
+- Self-voice preview가 완전히 실패하면 최종 job은 failed로 본다. 단, pitch extraction, alignment, evaluation 등 stage별 성공/실패 artifact는 별도로 기록한다.
 - 내부 alpha 결과물은 다운로드하지 않고 앱 안에서만 재생한다.
 - 보관 기간은 최소 1개월을 기준으로 둔다. raw audio는 장기 보관하지 않으며, raw audio를 제외한 분석/audit 데이터는 최대 1년 보관을 기준으로 검토한다.
+- P0 song package 필수 입력값은 title, artist, language, BPM, key, reference audio, source/provenance, usage status, section start/end로 확정한다.
 
 ### Retention Draft
 
@@ -80,6 +83,42 @@
 
 내부 alpha에서는 처리시간 목표를 공격적으로 잡지 않는다. 우선 구간 단위라도 안정적으로 성공하는지 검증하고, 이후 beta/제품화 단계에서 안정성과 속도를 함께 최적화한다.
 
+### Consent And Access Draft
+
+ElevenLabs benchmark 기준으로, Vox2Vocal은 내부 alpha에서 더 보수적인 consent model을 적용한다. 참고한 방향은 "본인 또는 권한 있는 목소리만 사용", "필요 권리 보유", "동의 없는 타인 목소리 모방 금지", "고위험 voice 차단 및 기술적 검증", "삭제 및 학습 사용 opt-out"이다. Source: [ElevenLabs Terms of Service](https://elevenlabs.io/terms-of-use), [ElevenLabs Safety](https://elevenlabs.io/safety), [ElevenLabs Prohibited Use Policy](https://elevenlabs.io/use-policy)
+
+P0 consent는 다음처럼 분리한다.
+
+- Own voice consent: 사용자가 업로드한 보컬이 본인 음성임을 확인한다. 분석/preview 생성의 필수 동의다.
+- Generated preview consent: 본인 음성을 기반으로 generated self-voice preview가 생성되고 앱 안에서 재생될 수 있음을 확인한다. 필수 동의다.
+- Expert review consent: 교사/전문가가 preview, pitch report, vocal-mode candidate를 검토할 수 있음을 확인한다. alpha 참여 조건으로 별도 동의한다.
+- Candidate data consent: 교사/전문가 라벨과 non-audio analysis artifact를 향후 품질 개선 후보 데이터로 저장할 수 있음을 별도 opt-in으로 받는다.
+- Retention/deletion notice: raw audio 30일 기본 보관, generated preview 30일 기본 보관, raw audio 없는 analysis/audit/label 데이터 최대 1년 후보 보관을 고지한다.
+
+P0 접근권한은 다음처럼 제한한다.
+
+- 사용자 본인: 본인 upload, generated preview, pitch report, job status, 삭제 요청에 접근한다.
+- 엔진 개발자: debugging 목적의 job artifact와 필요한 최소 raw/canonical audio에 제한적으로 접근한다. 접근은 time-bound, audited, least-privilege로 둔다.
+- 교사/전문가: 사용자가 동의한 job의 preview, pitch report, vocal-mode candidate, labeling UI에 접근한다. raw audio 직접 접근은 기본 차단하고 필요 시 별도 권한으로만 허용한다.
+- Product/QA: user-identifiable raw audio 없이 quality report, metrics, failure reason, anonymized artifact에 접근한다.
+- 운영/보안 관리자: retention, deletion, audit, incident response에 필요한 metadata에 접근한다. raw audio 접근은 break-glass로 제한한다.
+- 마케팅/일반 운영 인력: raw audio, generated preview, expert label에 접근하지 않는다.
+
+### Job State Ownership Draft
+
+모범사례 기준으로 conversion job의 source of truth는 BFF나 개별 engine worker가 아니라 전용 Conversion Job Orchestrator가 소유한다. Temporal은 workflow의 event history를 source of truth로 두고 failure 이후에도 상태를 복원하는 durable execution을 제공한다. AWS Step Functions도 state machine/execution history와 long-running, auditable workflow를 지원한다. Source: [Temporal durable execution](https://docs.temporal.io/temporal), [Temporal workflow event history](https://docs.temporal.io/workflows), [AWS Step Functions](https://docs.aws.amazon.com/step-functions/latest/dg/welcome.html)
+
+Vox2Vocal P0 권장 구조는 다음과 같다.
+
+- Conversion Job Orchestrator: job id, canonical state, stage transition, retry, partial/final decision, retention deadline을 소유한다.
+- BFF: 앱용 GraphQL facade로 create job, upload initiation, job status query/subscription, result retrieval만 중계한다. BFF는 job state의 source of truth가 아니다.
+- API Gateway: 내부 service 호출과 auth/user context 전달을 담당한다.
+- Engine workers: ingest, pitch, alignment, synthesis, render, evaluation stage를 수행하고 stage result event와 artifact pointer를 emit한다.
+- Event stream: NATS 또는 equivalent event bus가 stage events를 전달한다. Orchestrator는 idempotent하게 event를 반영한다.
+- Read model: 앱 조회용 job projection은 Orchestrator state에서 생성한다.
+
+P0 상태 모델은 `created`, `queued`, `processing`, `preview_ready`, `completed`, `failed`, `failed_with_partial_artifacts`, `blocked`, `needs_review`를 기준으로 한다. Self-voice preview가 완전히 실패하면 최종 상태는 `failed` 또는 `failed_with_partial_artifacts`이며, pitch feedback만 성공해도 alpha success로 보지 않는다.
+
 ### Assumptions
 
 - 1차 MVP의 핵심 검증은 "상업 출시 품질의 완성 보컬"이 아니라 "내 목소리가 보정/생성된 노래를 들어보며 연습 동기를 얻는 self-voice preview 경험"이다.
@@ -114,7 +153,7 @@
 
 Vox2Vocal MVP는 음악 학습자와 음악 교육자가 J-POP, 우타이테, 보컬 곡 한 곡 단위의 연습 녹음을 업로드하면, 시스템이 사용자의 본인 음성을 보정/생성된 self-voice song preview로 들려주는 내부 alpha 제품이다. 이후 같은 결과 화면에서 현재 음정과 목표 음정의 차이, 진성/비성/두성 등 발성/공명 유형 후보를 함께 제공한다.
 
-이 PRD의 목적은 "내 목소리로 보정/생성된 노래를 들어보는 경험"이 실제 음악 학습 동기를 만들 수 있는지 확인하는 것이다. 따라서 MVP는 상업 배포, 다중 보이스 모델, 정교한 DAW 편집 기능보다 가입, 업로드, 처리 상태 확인, self-voice preview 재생, 음정 매칭 피드백, 발성 유형 후보, 본인 음성 권한 차단을 우선한다.
+이 PRD의 목적은 "내 목소리로 보정/생성된 노래를 들어보는 경험"이 실제 음악 학습 동기를 만들 수 있는지 확인하는 것이다. 따라서 MVP는 상업 배포, 다중 보이스 모델, 정교한 DAW 편집 기능보다 가입, 관리자 곡 등록, 본인 보컬 업로드, 처리 상태 확인, self-voice preview 앱 내 재생, 음정 매칭 피드백, 교사/전문가 검토용 발성 유형 후보, 본인 음성 권한 차단을 우선한다.
 
 ## Problem Statement
 
@@ -130,16 +169,13 @@ Vox2Vocal MVP는 음악 학습자와 음악 교육자가 J-POP, 우타이테, �
 
 ## Goals
 
-- 사용자가 계정을 만들고 로그인한 상태에서 오디오 변환 작업을 생성할 수 있다.
-- 사용자가 `wav` 또는 `mp3` 형식의 본인 보컬 연습 파일을 업로드할 수 있다.
-- 내부 alpha에서 J-POP/우타이테 한 곡 단위 입력 처리의 기술 가능성과 병목을 검토할 수 있다.
-- 시스템이 업로드 파일을 표준 오디오 asset으로 변환하고 처리 상태를 추적할 수 있다.
-- 시스템이 본인 음성을 기반으로 보정/생성된 self-voice song preview를 제공할 수 있다.
-- 시스템이 곡 단위 입력에서 구간별 pitch, timing, melody, alignment, quality 정보를 생성할 수 있다.
-- 시스템이 현재 음정과 목표 음정의 차이를 학습자가 이해할 수 있게 보여줄 수 있다.
-- 시스템이 진성/비성/두성 등 발성/공명 유형 후보를 confidence와 함께 제공할 수 있다.
-- 모든 변환 요청은 사용자 권한과 보이스 사용 정책을 통과해야 하며 audit 가능한 기록을 남긴다.
-- 사용자는 실패 이유와 재시도 가능 여부를 이해할 수 있다.
+- 학습자가 관리자 등록 곡을 선택하고 본인 보컬을 업로드한 뒤, 앱 안에서 "내 목소리처럼 들리는" 보정/생성 preview를 들어볼 수 있다.
+- 내부 alpha에서 최소 한 곡의 대표 구간 단위 preview, pitch 비교, 품질 리포트가 안정적으로 성공하는지 검증한다.
+- 학습자가 현재 음정과 목표 음정의 차이를 구간별로 이해하고 다음 연습 우선순위를 정할 수 있다.
+- 교육자/전문가가 진성/비성/두성 등 발성/공명 후보와 low-confidence 구간을 검토할 수 있다.
+- 제품/엔진 팀이 한 곡 단위 입력의 처리 시간, 실패 원인, chunking 필요성, 비용/메모리 병목을 판단할 수 있다.
+- 모든 분석/preview 요청은 본인 음성 정책, 앱 내 재생 정책, 보관 정책, audit 기록을 통과해야 한다.
+- 실패하거나 부분 성공한 작업은 사용자와 내부 리뷰어가 stage, reason, retry 가능 여부를 이해할 수 있다.
 
 ## Non-goals
 
@@ -151,15 +187,35 @@ Vox2Vocal MVP는 음악 학습자와 음악 교육자가 J-POP, 우타이테, �
 - 모든 장르와 모든 언어의 완전 지원. MVP는 J-POP/우타이테 학습 맥락을 우선한다.
 - 고급 expression control, voice conversion, custom voice training
 - 불특정 다수의 목소리에 대한 완전 자동 발성/공명 판정 모델
+- 내부 alpha P0를 막는 수준의 완전 자동 YouTube/Spotify/lyrics provider ingestion
+- 내부 alpha P0에서 모든 곡 전체 구간의 완전한 preview 품질 보장
 
 ## Scope
+
+### P0 Alpha Build Slice
+
+- 관리자 수동 song package 등록: J-POP 1곡을 기준으로 title, artist, language, BPM, key, reference audio, source/provenance, usage status, 후렴 section start/end를 필수로 등록한다.
+- 학습자 곡 선택 및 본인 보컬 업로드: 학습자는 관리자 등록 곡만 선택하고, 본인 보컬 연습 파일만 업로드한다.
+- Section-first processing: 내부 alpha는 후렴 구간에서 self-voice preview, pitch comparison, quality report가 안정적으로 생성되면 성공 후보로 본다.
+- Pitch-first processing: 가사 sync는 P1 실험 범위로 두고, P0는 pitch target extraction과 pitch comparison을 우선한다.
+- App-only preview: generated preview와 reference audio는 앱 내 재생만 허용하고 다운로드/export/share를 차단한다.
+- Safety and audit: 본인 음성 확인, rights decision, operation audit log, raw audio retention decision을 job 단위로 기록한다.
+- Internal review: 교사/전문가가 vocal-mode candidate, low-confidence section, preview 품질을 검토할 수 있어야 한다.
+
+### P1 Experimental Scope
+
+- 곡 전체 one-pass 처리 또는 chunked full-song merge
+- YouTube, Spotify, lyrics provider 등 외부 provider 기반 metadata/lyrics 자동 수집
+- AI 또는 alignment engine 기반 가사 timestamp sync 자동화
+- 일본어 가사/음절 alignment
+- 교사/전문가 라벨 기반 future model-improvement dataset 설계
 
 ### In Scope
 
 - 이메일/비밀번호 기반 회원가입, 로그인, 현재 사용자 조회
 - 모바일 앱 및 웹에서 인증 후 MVP 작업 화면 접근
 - 오디오 업로드: `wav`, `mp3`, 사용자 본인 보컬 연습 파일
-- 관리자 song package 등록: pitch target 추출과 비교 분석 목적의 원곡/reference audio, metadata, lyrics, BPM, key, section 정보를 등록
+- 관리자 song package 등록: pitch target 추출과 비교 분석 목적의 원곡/reference audio, metadata, BPM, key, section 정보를 등록. P0에서는 수동 등록과 후렴 section을 기준으로 하며 provider 자동화와 lyrics sync는 P1 실험 범위로 둔다.
 - 학습자 곡 선택: 학습자는 관리자 등록 곡을 선택하고 본인 보컬 연습 파일만 업로드
 - 입력 길이 목표: J-POP/우타이테 노래 한 곡 기준. 내부 alpha에서는 기술 검토 결과에 따라 chunk 단위 처리, 구간별 처리, 또는 길이 제한을 둘 수 있다.
 - 입력 metadata: 곡/작업명, 언어, BPM, key, 가사 또는 대본 텍스트, 원곡/목표곡 정보
@@ -226,9 +282,9 @@ Vox2Vocal MVP는 음악 학습자와 음악 교육자가 J-POP, 우타이테, �
 ### FR-003 Create Conversion Project
 
 - The learner must be able to create a practice analysis project by selecting an admin-registered song package and uploading their own vocal practice recording.
-- The selected song package must provide default language, BPM, key, lyrics, reference audio, and target section metadata when available.
+- The selected P0 song package must provide default language, BPM, key, reference audio, and chorus section metadata. Lyrics are optional in P0.
 - The learner may edit BPM and key defaults when correction controls are enabled.
-- MVP must require users to acknowledge that the uploaded recording contains their own voice.
+- MVP must require users to acknowledge that the uploaded recording contains their own voice and consent to analysis/preview generation before engine processing starts.
 - The system must assign a project/job id before engine processing starts.
 
 ### FR-004 Upload And Audio Ingest
@@ -243,9 +299,10 @@ Vox2Vocal MVP는 음악 학습자와 음악 교육자가 J-POP, 우타이테, �
 ### FR-005 Admin Song Package Management
 
 - The system must allow admins to register reference/target songs for internal alpha.
-- Admin song package registration must support title, artist, reference audio, language, lyrics, BPM, key, sections, and source/provider metadata.
-- The system should support metadata ingestion from external music or lyrics providers, subject to licensing and API terms.
-- The system should support AI-assisted lyric/audio synchronization to produce timestamped lyrics or section alignment.
+- P0 admin song package registration must require title, artist, reference audio, language, BPM, key, chorus target section start/end, source/provenance, and reference-audio usage status.
+- Lyrics are required only when lyric or syllable alignment is enabled for the selected alpha song or section.
+- The system may support metadata ingestion from external music or lyrics providers, subject to licensing and API terms, but this must not block P0 manual registration.
+- The system may support AI-assisted lyric/audio synchronization to produce timestamped lyrics or section alignment, but pitch-first processing must remain available when sync quality is insufficient.
 - Reference audio must be used only for analysis and comparison inside the app.
 - Reference audio must not be exposed for download, sharing, model training, or third-party voice cloning.
 - The system must track reference audio storage, retention, and deletion policy separately from the learner's own vocal recording.
@@ -257,6 +314,8 @@ Vox2Vocal MVP는 음악 학습자와 음악 교육자가 J-POP, 우타이테, �
 - MVP must allow only the learner's own uploaded voice as the source vocal.
 - The system must deny any request that attempts to use another person's voice, a celebrity/artist voice, a character voice, or an unverified target voice model.
 - Each analysis or preview request must create an audit log with user id, source asset id, operation, decision, and policy reason.
+- The system must collect separate consent records for own-voice upload, generated preview, expert review, candidate data use, and retention/deletion notice.
+- Candidate data use must be opt-in and must not be bundled with required own-voice analysis consent.
 
 ### FR-007 Voice Analysis
 
@@ -306,10 +365,12 @@ Vox2Vocal MVP는 음악 학습자와 음악 교육자가 J-POP, 우타이테, �
 
 ### FR-013 Job Status And Result UI
 
-- The app must show job states: `created`, `queued`, `processing`, `completed`, `failed`, `blocked`.
+- The app must show job states: `created`, `queued`, `processing`, `preview_ready`, `completed`, `failed`, `failed_with_partial_artifacts`, `blocked`, `needs_review`.
 - Completed jobs must put self-voice preview playback first.
+- Completed jobs must show whether the result is full-song, section-limited, or partial.
 - Completed jobs must show current pitch vs target pitch, pitch match score or deviation, low-confidence pitch sections, teacher/expert-facing vocal mode candidates, section-level learning feedback, and basic quality report.
 - Failed jobs must show stage, reason, and whether retry is allowed.
+- Partial jobs must show which output exists, which output failed, and whether the user can still play a preview.
 - Blocked jobs must show policy reason without exposing sensitive policy internals.
 
 ### FR-014 Preview Quality Evaluation
@@ -317,6 +378,7 @@ Vox2Vocal MVP는 음악 학습자와 음악 교육자가 J-POP, 우타이테, �
 - The system must evaluate whether the generated self-voice preview is playable, complete or section-limited, clipped, or artifact-heavy.
 - The system must expose preview quality status in user-facing language and detailed artifact metadata internally.
 - The system must not mark a job as fully successful if the learning report succeeds but no self-voice preview or section-limited preview is available.
+- If self-voice preview generation completely fails, the final user-facing job state must be `failed` or `failed_with_partial_artifacts`, not `completed`.
 
 ### FR-015 Pitch And Vocal Mode Feedback
 
@@ -330,7 +392,7 @@ Vox2Vocal MVP는 음악 학습자와 음악 교육자가 J-POP, 우타이테, �
 
 - The system must store pitch deviation, timing deviation, clipping detection, and engine artifact comparison results.
 - The system must store preview completion status, section coverage, vocal mode confidence, and low-confidence reasons.
-- The system must store teacher/expert-reviewed vocal mode labels as candidate training data only when consent, access control, and labeling quality requirements are met.
+- The system must store teacher/expert-reviewed vocal mode labels as candidate data only when consent, source provenance, label confidence, inter-rater agreement, access control, and labeling quality requirements are met.
 - Each engine stage must emit structured logs tied to job id.
 - Quality reports must be available for internal review even if the user-facing version is simplified.
 - Full-song jobs must expose duration, chunk count, per-stage processing time, memory/cost class, and failed section details for technical review.
@@ -341,42 +403,70 @@ Vox2Vocal MVP는 음악 학습자와 음악 교육자가 J-POP, 우타이테, �
 - Raw audio must not be used as the 1-year retained dataset.
 - Non-audio analysis data, audit records, operational metadata, confidence scores, and teacher/expert labels may be retained for up to 1 year for debugging, evaluation, and future model improvement.
 - Retained non-audio data must preserve source provenance and consent status.
+- Deletion and retention jobs must be observable enough for internal reviewers to confirm that raw audio is excluded from 1-year datasets.
+- Access to raw audio, generated preview, reference audio, expert labels, and analysis artifacts must follow the role-based access model in `Consent And Access Draft`.
+
+### FR-018 Conversion Job Orchestration
+
+- A Conversion Job Orchestrator must own the canonical job state, stage transitions, retry decisions, partial/final decisions, retention deadline, and app-facing read model.
+- BFF must expose app-facing GraphQL APIs for create job, upload initiation, job status, and result retrieval, but must not be the canonical job state owner.
+- API Gateway must pass auth/user context and route service calls, but must not independently mutate job state without orchestrator acknowledgment.
+- Engine workers must emit idempotent stage result events with job id, stage, status, artifact pointer, error reason, confidence summary, and timing metadata.
+- The orchestrator must derive final job status from stage events. If preview generation fails completely, pitch-only success must remain a partial artifact and must not become alpha success.
+- The orchestrator must support replay or reconstruction from event history, durable state, or an equivalent append-only state transition log.
 
 ## Acceptance Criteria
 
 - Given a new user enters valid signup details and accepts terms, when they submit, then an account is created and the app receives auth tokens and user profile.
 - Given a user enters invalid email or password, when they submit signup/login, then validation errors are shown and no conversion job is created.
+- Given an admin creates a P0 J-POP song package, when title, artist, language, BPM, key, reference audio, source/provenance, usage status, or chorus section start/end is missing, then the package cannot be published to learners.
+- Given an admin creates a P0 J-POP song package with required metadata, reference audio, source/provenance, usage status, and chorus section, when validation passes, then learners can select that song in the alpha app.
 - Given an authenticated user uploads a supported `wav` or `mp3` practice recording, when the upload completes, then the system creates a practice analysis job and an `audio_asset_id`.
 - Given an admin registers reference audio, when target extraction runs, then the system uses the reference audio only for app-internal analysis and does not expose it for download or sharing.
 - Given an uploaded recording is song-length, when processing begins, then the system either processes it in one pass or records a documented section/chunk strategy for the job.
 - Given an unsupported file format is uploaded, when validation runs, then the user sees a clear unsupported format message.
 - Given the user does not confirm the source audio is their own voice, when they attempt to start analysis or preview generation, then the job is blocked before engine processing.
+- Given the user consents to own-voice analysis but does not opt into candidate data use, when expert labels are created, then those labels are not included in future model-improvement candidate datasets.
 - Given the user attempts to use another person's voice or an unauthorized target voice model, when Safety Rights runs, then the job is denied and an audit record is created.
 - Given a valid practice recording with required metadata, when the pipeline completes, then a corrected/generated self-voice song preview is available for app-only playback or the section-limited preview state is clearly shown.
+- Given preview generation fails completely but pitch feedback succeeds, when the job reaches final decision, then the user-facing job is `failed` or `failed_with_partial_artifacts`, and pitch artifacts remain available internally.
 - Given a self-voice preview is generated, when the user opens the result screen, then preview playback is the primary action before detailed analytics.
 - Given target notes are available from reference audio analysis or engine-derived note sequence, when pitch analysis completes, then the user can see current pitch, target pitch, and sharp/flat/on-target status by section.
 - Given reference audio analysis and engine-derived note sequence conflict, when confidence is low or disagreement is high, then the system labels the section as low confidence or teacher review needed instead of forcing a target note.
+- Given Japanese lyric alignment is unavailable or low confidence, when the job runs, then pitch-first analysis can still complete without presenting missing lyric sync as a full job failure.
 - Given vocal mode analysis has enough confidence, when a teacher/expert opens the internal alpha result screen, then 진성/비성/두성 or other vocal mode candidates are shown with confidence and caveats.
 - Given vocal mode analysis has low confidence, when the user opens the result screen, then the system shows an insufficient-confidence state instead of forcing a label.
-- Given a teacher/expert confirms or corrects a vocal mode label, when the label is stored, then it is marked as expert-reviewed candidate training data with consent and provenance.
+- Given a teacher/expert confirms or corrects a vocal mode label, when the label is stored, then it is marked as expert-reviewed candidate data with consent, provenance, confidence, and inter-rater agreement metadata.
 - Given a pipeline stage fails, when the user views the job, then the failed stage, plain-language reason, and retry guidance are shown.
 - Given a completed job, when internal reviewers inspect the artifacts, then preview completion status, pitch deviation, timing deviation, clipping status, vocal mode confidence, and stage outputs are available.
 - Given a song-length internal alpha job completes or fails, when internal reviewers inspect the artifacts, then duration, chunk count, stage timings, and failed sections are available.
+- Given a raw audio artifact reaches its retention deadline, when the retention process runs, then raw audio is deleted or flagged for deletion and excluded from 1-year retained datasets.
+- Given an engine worker emits a stage result, when the orchestrator receives the event more than once, then the job state remains idempotent and no duplicate user-facing completion is created.
+- Given the app requests job status, when BFF serves the request, then BFF reads the orchestrator-backed projection rather than independently deciding final job status.
 - Given mobile viewport `360 x 640`, when the user signs up, logs in, uploads, and views a result, then primary actions remain reachable without horizontal scroll.
+
+## Alpha Readiness Criteria
+
+- Build can start when the team selects 1 J-POP alpha song, defines the chorus target section, and confirms required song package metadata.
+- Build can start when Conversion Job Orchestrator ownership and the app-facing job status contract are agreed.
+- Build can start when Safety Rights has an alpha policy for separated consent, blocked jobs, audit logging, and app-only playback.
+- Build can start when self-voice preview evaluation uses a fixed primary question, for example: "이 preview가 내 목소리처럼 들린다" on a 1-5 scale, where 4 or higher counts as a successful response.
+- Build can start when raw audio retention, generated preview retention, audit retention, and deletion ownership are documented.
+- Build should not include provider automation as a P0 dependency unless licensing/API terms are already approved.
 
 ## Success Metrics
 
 - Activation
   - Baseline: Unknown. No production usage data available.
-  - Target: At least 40% of signed-in internal alpha testers from the 10 learner / 2 educator cohort create one practice analysis job within their first session.
+  - Target: At least 5 of 10 learner alpha testers create one practice analysis job within their first session, and both educator alpha testers can open at least one reviewable result.
   - Guardrail: Signup/login failure due to client/backend integration errors below 2% of attempts.
 - Job completion
   - Baseline: Unknown. Engine pipeline not yet fully implemented.
-  - Target: At least 60% of valid supported song-length internal alpha jobs reach `completed_with_preview` or `completed_with_section_limited_preview`.
+  - Target: At least 60% of valid P0 section jobs reach `completed_with_preview` or `completed_with_section_limited_preview`.
   - Guardrail: No unauthorized or non-self voice jobs reach analysis, preview, or synthesis.
 - Self-voice preview usefulness
   - Baseline: Unknown.
-  - Target: At least 50% of learner/teacher alpha testers rate the self-voice preview as sounding recognizably like their own voice.
+  - Target: At least 5 of 10 learner alpha testers rate the self-voice preview 4 or higher on the primary question, "이 preview가 내 목소리처럼 들린다". Any response below 4 does not count as success for this metric. No more than 2 learners should rate it 2 or lower.
   - Guardrail: The result screen must not present a job as successful when preview generation failed completely.
 - Time to preview
   - Baseline: Unknown.
@@ -384,11 +474,11 @@ Vox2Vocal MVP는 음악 학습자와 음악 교육자가 J-POP, 우타이테, �
   - Guardrail: P95 processing time and failure reasons are visible internally for debugging.
 - Pitch matching usefulness
   - Baseline: Unknown.
-  - Target: At least 50% of learner/teacher alpha testers say the current-vs-target pitch feedback helps identify what to practice next.
+  - Target: At least 5 of 10 learner alpha testers say the current-vs-target pitch feedback helps identify what to practice next.
   - Guardrail: Low-confidence pitch sections and disagreement between reference-audio target extraction and engine-derived note sequence must be clearly labeled and excluded from overconfident scores.
 - Vocal mode insight usefulness
   - Baseline: Unknown.
-  - Target: At least 40% of teacher/expert alpha reviewers say 진성/비성/두성 candidate feedback is understandable and worth keeping.
+  - Target: At least 1 of 2 teacher/expert alpha reviewers says 진성/비성/두성 candidate feedback is understandable and worth keeping for internal review.
   - Guardrail: Vocal mode labels must remain teacher/expert-facing, include confidence or insufficient-confidence states, and must not be presented as definitive diagnosis.
 - Quality diagnostics
   - Baseline: Unknown.
@@ -430,12 +520,13 @@ Vox2Vocal MVP는 음악 학습자와 음악 교육자가 J-POP, 우타이테, �
 - App: upload screen, job status screen, learning report screen, app-only result playback UI, token/session integration
 - BFF: GraphQL mutations/queries for signup, login, admin song package registration, create project/job, upload initiation, job status, result retrieval
 - API Gateway: orchestration APIs for auth, song package, project/job, asset, conversion, and user context
+- Conversion Job Orchestrator: canonical job state, stage transition, retry, final decision, retention deadline, app-facing read model
 - User Service: account, auth, user identity, role/status
 - Storage: source audio, reference audio, canonical wav, manifests, render outputs, internal-only artifacts
 - Queue/Eventing: NATS JetStream for audio/engine pipeline events, Redis/BullMQ if used for app-facing async jobs
 - Engines: audio ingest, voice analysis, voice pitch, phoneme alignment, rhythm timing, melody mapping, singing synthesis, vocoder render, mix master, evaluation, safety rights
 - Infra: PostgreSQL, Redis, NATS, local or object storage, Kubernetes deployments, structured logs
-- Policy: terms, privacy policy, own-voice consent, reference audio policy, audit retention, disallowed voice-use policy
+- Policy: terms, privacy policy, separated consent, own-voice consent, expert review consent, candidate data opt-in, reference audio policy, audit retention, disallowed voice-use policy
 - Music domain inputs: target song metadata, provider/source metadata, lyrics handling, BPM/key source, reference audio handling, target note extraction policy
 - External data providers: YouTube/Spotify/music metadata domains, lyrics providers, and any licensed source required for metadata or lyric retrieval
 - Music education expertise: definition and labeling guidance for 진성, 비성, 두성, low-confidence cases, and teacher-facing explanation copy
@@ -444,30 +535,31 @@ Vox2Vocal MVP는 음악 학습자와 음악 교육자가 J-POP, 우타이테, �
 
 ### Product And User
 
+- P0 alpha의 구체적인 J-POP 곡명/아티스트는 무엇으로 정할 것인가?
 - 학습자용 화면과 교육자용 화면을 같은 결과 화면으로 시작할 것인가, 역할별로 다르게 보여줄 것인가?
 - 한국어만 MVP로 고정할 것인가, 영어/일본어 등도 early scope에 넣을 것인가?
-- 일본어 가사 정렬을 포함할 수 있는 기술 난이도 기준은 무엇인가? 어려우면 pitch-only로 축소한다.
-- 관리자 song package 등록 시 필수 metadata는 무엇인가: title, artist, reference audio, language, lyrics, BPM, key, section 중 어디까지 필수로 둘 것인가?
+- 관리자 song package의 P0 필수 metadata 외에 lyrics, section lyrics, provider id, album/artwork 등을 언제부터 요구할 것인가?
 
 ### Safety And Policy
 
-- 본인 음성 확인은 내부 alpha에서 단순 checkbox로 충분한가, 아니면 녹음 동의/보이스 소유 인증 flow가 필요한가?
+- 본인 음성 확인은 P0에서 separated consent로 시작하고, 이후 active voice verification이나 voice CAPTCHA 수준까지 확장할 필요가 있는가?
 - 최소 1개월 보관 이후 reference audio와 사용자 녹음의 자동 삭제, 연장, 접근 권한 정책은 어떻게 둘 것인가?
-- audit log 보관 기간과 접근 권한은 누가 결정하는가?
+- break-glass raw audio 접근은 누가 승인하고 어떤 incident 조건에서 허용할 것인가?
+- audit log 보관 기간과 접근 권한 최종 owner는 누가 될 것인가?
 
 ### Quality And Metrics
 
-- self-voice preview의 "내 목소리처럼 들림"을 어떤 평가 문항과 샘플 수로 검증할 것인가?
+- "이 preview가 내 목소리처럼 들린다" 평가 문항을 어떤 UI timing과 copy로 노출할 것인가?
 - 진성/비성/두성 라벨은 어떤 음악교육 정의를 따를 것인가?
+- teacher/expert reviewer 2명이 서로 다른 라벨을 주면 어떤 합의 기준을 적용할 것인가?
 - 안정화 이후 J-POP/우타이테 한 곡 입력에서 허용 가능한 처리 시간은 몇 분인가?
 - 결과가 나쁘더라도 job은 `completed`로 볼 것인가, quality threshold 미달이면 `failed` 또는 `needs_review`로 볼 것인가?
-- self-voice preview가 완전히 실패하고 음정/발성 리포트만 성공하면 partial success로 볼 것인가, failed로 볼 것인가?
 
 ### Technical Scope
 
 - upload는 앱에서 BFF로 직접 보낼 것인가, presigned URL/object storage를 사용할 것인가?
-- conversion job의 source of truth는 어떤 서비스가 소유할 것인가?
-- NATS 기반 엔진 이벤트와 앱-facing job status를 어떤 저장소/서비스에서 동기화할 것인가?
+- Conversion Job Orchestrator를 신규 서비스로 둘 것인가, P0에서는 worker/API Gateway/BFF 중 한 곳에 bounded module로 시작할 것인가?
+- NATS 기반 엔진 이벤트와 app-facing job projection을 어떤 저장소에서 관리할 것인가?
 - 현재 `worker`의 Redis/BullMQ 역할과 NATS 기반 engine pipeline 역할을 어떻게 나눌 것인가?
 - downstream 엔진이 아직 구현되지 않은 단계에서는 mock engine, stub output, or partial pipeline 중 어떤 방식으로 UX를 검증할 것인가?
 - 한 곡 입력을 one-pass로 처리할 것인가, chunked pipeline으로 처리할 것인가?
@@ -475,8 +567,8 @@ Vox2Vocal MVP는 음악 학습자와 음악 교육자가 J-POP, 우타이테, �
 
 ### Launch
 
-- 내부 alpha에서 허용 가능한 데이터 접근 범위와 운영자 접근 권한은 어디까지인가?
 - 실패한 작업의 원본 오디오는 보관할 것인가, 즉시 삭제할 것인가?
+- provider 자동화가 P0에서 제외될 경우, 관리자 수동 등록 운영 비용을 누가 감당할 것인가?
 
 ## Assumptions
 
@@ -484,6 +576,8 @@ Vox2Vocal MVP는 음악 학습자와 음악 교육자가 J-POP, 우타이테, �
 - MVP의 제품 목표는 J-POP/우타이테 노래 한 곡 기준이지만, 내부 alpha에서는 기술 검토 결과에 따라 chunked full-song 또는 section-limited alpha로 축소될 수 있다.
 - 주요 사용자는 음악 학습자와 음악 교육자다.
 - 내부 alpha 사용자 규모는 학습자 10명과 교육자 2명이다.
+- P0 alpha는 J-POP 1곡의 후렴 section, 관리자 수동 song package 등록, pitch-first processing, section-first preview를 기준으로 build한다.
+- 외부 provider 기반 metadata/lyrics 자동화, lyrics sync, full-song merge는 P1 실험 범위로 둔다.
 - 사용자 본인 음성만 허용한다.
 - 1차 가치는 내 목소리가 보정/생성된 노래를 들어보는 self-voice preview다.
 - self-voice preview의 alpha primary rating은 "내 목소리처럼 들림"이다.
@@ -496,13 +590,13 @@ Vox2Vocal MVP는 음악 학습자와 음악 교육자가 J-POP, 우타이테, �
 - 곡 metadata와 가사는 외부 provider 또는 AI 보조 수집을 사용할 수 있지만, provider/API/license 검토 후 확정한다.
 - 3차 가치는 진성, 비성, 두성 등 발성/공명 유형 후보 확인이다.
 - 발성/공명 유형 분석은 내부 alpha에서 확정 판정이 아니라 confidence가 있는 교사/전문가 검토용 후보 정보로 제공한다.
-- 교사/전문가 검토 라벨은 추후 발성/공명 자동 판단 모델을 위한 후보 학습 데이터로 축적할 수 있다.
-- 일본어 가사/음절 정렬은 가능하면 포함하되, 기술 난이도가 크면 pitch 중심 alpha를 우선한다.
+- 교사/전문가 검토 라벨은 바로 학습에 쓰지 않고 candidate data로 저장하며 consent, provenance, confidence, inter-rater agreement를 함께 기록한다.
+- 일본어 가사/음절 정렬과 lyrics sync는 P1 실험 범위로 두고, P0는 pitch 중심 alpha를 우선한다.
 - 내부 alpha 결과물은 다운로드하지 않고 앱 안에서만 재생한다.
 - 보관 기간은 최소 1개월을 기준으로 한다. raw audio는 1년 보관 대상에서 제외하고, raw audio 없는 분석/audit/label 데이터만 최대 1년 보관 후보로 둔다.
 - 내부 alpha는 처리 속도보다 안정적 구간 성공을 우선한다. 추후에는 안정성과 속도를 모두 최적화한다.
 - 출시 형태는 내부 alpha다.
 - Safety Rights는 feature가 아니라 launch gate로 취급한다.
 - 앱은 모바일 first이지만, Expo Web에서도 핵심 flow를 유지한다.
-- 현재 구현 상태를 기준으로 auth 연동, upload/job API, result UI, engine orchestration이 주요 신규 개발 범위다.
+- 현재 구현 상태를 기준으로 auth 연동, upload/job API, result UI, Conversion Job Orchestrator, engine orchestration이 주요 신규 개발 범위다.
 - PRD 승인 전에는 self-voice preview 평가 문항, song package 필수 metadata, vocal mode 라벨 정의, full-song 처리 방식, 저장/삭제 정책, success metric target을 반드시 확정해야 한다.
