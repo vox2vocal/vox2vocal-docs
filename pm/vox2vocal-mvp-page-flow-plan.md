@@ -1,17 +1,17 @@
 # Vox2Vocal MVP Page / Flow Plan
 
-문서 버전: v0.1
+문서 버전: v0.2
 작성일: 2026-06-13
-기준 문서: `pm/vox2vocal-mvp-feature-definition.md` v0.3
+기준 문서: `pm/vox2vocal-mvp-feature-definition.md` v0.4
 적용 skill: `page-flow-planner`
 
 ## Flow Summary
 
-Vox2Vocal P0 내부 alpha의 핵심 흐름은 named alpha tester가 `Mist intro` alpha test track을 선택하고, 본인 보컬 파일을 업로드한 뒤, 앱 안에서 section-limited self-voice preview를 재생하고 "내 목소리처럼 들린다"를 평가하는 것이다.
+Vox2Vocal P0의 핵심 흐름은 접근 권한이 있는 학습자가 `Mist` 곡을 선택하고, `intro` section을 선택한 뒤, 앱에서 본인 목소리 take를 녹음하고, 앱 안에서 section-limited self-voice preview를 재생해 "내 목소리처럼 들린다"를 평가하는 것이다.
 
 P0 화면은 네 surface로 나눈다.
 
-- Learner app: alpha eligibility, 곡 선택, consent, upload, processing, preview/result, rating, deletion request
+- Learner app: access eligibility, 곡 선택, section 선택, consent, recording/take review, fallback upload, processing, preview/result, rating, deletion request
 - Limited admin: reference audio upload, song package, section map, rights/risk exposure control
 - Educator/expert review: 동의된 job의 preview, pitch report, failure tags, quality summary 검토
 - Internal governance: audit/deletion evidence, contact follow-up gate, break-glass disabled 상태 확인
@@ -22,7 +22,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 
 ### 1. 로그인 / 회원가입 (Login / Signup)
 
-- Purpose: 사용자가 본인 계정으로 P0 alpha surface에 접근할 수 있게 한다.
+- Purpose: 사용자가 본인 계정으로 P0 surface에 접근할 수 있게 한다.
 - Primary action: 이메일/비밀번호로 로그인하거나 회원가입 후 이메일 인증을 완료한다.
 - Secondary actions: 약관 확인, 세션 만료 후 재로그인, role별 접근 불가 안내 확인.
 - Required data:
@@ -30,6 +30,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
   - email verification status
   - user id, role, account status
   - terms consent version
+  - required P0 consent versions and scope
 - Key components:
   - login form
   - signup form
@@ -49,30 +50,30 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
   - role이 없는 내부 계정은 learner보다 넓은 접근을 받지 않는다.
 - Navigation:
   - From: app entry, protected route redirect
-  - To: Alpha Eligibility / Track Selection, Limited Admin, Review Queue, Governance Evidence
+  - To: Access Eligibility / Song Selection, Limited Admin, Review Queue, Governance Evidence
 - Success signal:
   - client/backend 인증 연동 오류가 시도 대비 2% 미만
   - 인증된 사용자가 role에 맞는 첫 화면으로 이동
 
-### 2. Alpha Eligibility / Track Selection
+### 2. Access Eligibility / Song Selection
 
-- Purpose: P0 named alpha tester가 `Mist intro` alpha test track을 선택할 수 있는지 확인하고, 권리/노출 상태에 따라 안전하게 진입시킨다.
-- Primary action: `Mist intro` alpha test track을 선택한다.
-- Secondary actions: track metadata 확인, alpha 제한 조건 확인, 접근 불가 사유 확인, 다른 곡 선택 안내.
+- Purpose: 접근 권한이 있는 학습자가 `Mist` song package를 선택할 수 있는지 확인하고, 권리/노출 상태에 따라 안전하게 진입시킨다.
+- Primary action: `Mist` song을 선택한다.
+- Secondary actions: song metadata 확인, 이용 제한 조건 확인, 접근 불가 사유 확인, 다른 곡 선택 안내.
 - Required data:
-  - user id, role, `alpha_named_tester` flag
+  - user id, role, internal eligibility flag
   - song package id, title, artist, language
-  - target section id `intro`, timestamp `0:00-0:28`
-  - rights state: `published`, `unlicensed_internal_alpha_risk_accepted`, `rights_blocked`, `under_review`, `retired`
+  - rights state: `published`, `unlicensed_internal_risk_accepted`, `rights_blocked`, `under_review`, `retired`
+  - reference pre-listen and lyrics display defaults
   - feature flag for learner BPM/key correction
   - risk acceptance exposure decision
 - Key components:
-  - alpha eligibility banner
-  - track card for `Mist intro`
-  - section summary
+  - access eligibility banner
+  - song card for `Mist`
+  - default section teaser
   - rights/availability status message
   - disabled state reason panel
-- Empty state: 사용 가능한 alpha track이 없으면 "현재 참여 가능한 테스트 곡이 없음"을 보여준다.
+- Empty state: 사용 가능한 곡이 없으면 "현재 선택 가능한 곡이 없음"을 보여준다.
 - Loading state: song package와 eligibility를 불러오는 동안 skeleton 또는 compact loading state를 표시한다.
 - Error state:
   - package metadata load failure
@@ -80,96 +81,138 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
   - audit allow decision failure
 - Permission state:
   - 일반 learner는 `published` package만 선택 가능
-  - named alpha tester만 `unlicensed_internal_alpha_risk_accepted` package 선택 가능
+  - 내부 allowlist에 포함된 사용자만 `unlicensed_internal_risk_accepted` package 선택 가능
   - `rights_blocked`, `under_review`, `retired` 상태는 selection, processing, playback 진입 차단
 - Navigation:
   - From: Login / Signup, completed/deleted job에서 새 job 생성
-  - To: Song Setup / Consent
+  - To: Section Selection / Part Selection
   - Blocked To: 다른 곡 선택 안내 또는 문의
 - Success signal:
   - learners는 `rights_blocked` package를 선택할 수 없음
-  - 100%의 track exposure decision이 provenance, allowed use, retention, deletion owner를 포함
+  - 100%의 song exposure decision이 provenance, allowed use, retention, deletion owner를 포함
 
-### 3. Song Setup / Consent
+### 3. Section Selection / Part Selection
 
-- Purpose: job 생성 전에 BPM/key snapshot, 본인 음성 처리, generated preview, expert review, retention, optional candidate/contact consent를 명확히 분리해 받는다.
-- Primary action: 필수 동의를 확인하고 upload 단계로 진행한다.
-- Secondary actions: BPM/key 수정, alpha 제한 조건 확인, optional candidate data opt-in, optional contact follow-up opt-in, consent 상세 보기.
+- Purpose: 선택한 곡 안에서 녹음하고 처리할 target part를 고른다. P0에서는 `intro` 하나만 선택 가능해도 이 단계를 유지한다.
+- Primary action: `intro 0:00-0:28` section을 선택한다.
+- Secondary actions: section label, timestamp, expected duration, recording focus, 권리/가이드 가능 여부 확인.
+- Required data:
+  - selected song package id
+  - section id, label, start/end timestamp, expected duration
+  - BPM/key default
+  - reference pre-listen flag/scope
+  - lyrics display flag/scope
+  - lyrics sync flag
+  - rights state and risk acceptance exposure decision
+- Key components:
+  - section list or single-section selector
+  - section timeline row
+  - expected recording length indicator
+  - guide availability badges for reference pre-listen and lyrics
+  - disabled state reason panel
+- Empty state: 선택 가능한 section이 없으면 곡 선택으로 되돌린다.
+- Loading state: section map and guide flags loading.
+- Error state:
+  - section map load failure
+  - selected section retired or blocked
+  - rights state changed after song selection
+- Permission state:
+  - `rights_blocked`, `under_review`, `retired` section은 recording 진입 차단
+  - reference/lyrics guide가 blocked여도 section recording은 계속 가능
+- Navigation:
+  - From: Access Eligibility / Song Selection
+  - To: Record Take / Take Review
+  - Back To: Song Selection
+- Success signal:
+  - song selected -> section selected funnel event가 분리 추적됨
+  - P0 job의 100%가 selected song id와 section id를 가짐
+
+### 4. Record Take / Take Review
+
+- Purpose: 학습자가 선택한 section 기준으로 앱에서 본인 목소리 take를 녹음하고, 제출 전 자기 take를 확인한다. BPM/key와 필수 동의 확인은 별도 사용자-visible page가 아니라 recorder 진입 gate와 제출 전 검증으로 처리한다. Fallback upload는 recorder를 사용할 수 없거나 내부 운영에서 enabled일 때만 제공한다.
+- Primary action: 본인 목소리 take를 녹음하고 replay 후 processing 시작을 요청한다.
+- Secondary actions: BPM/key snapshot 확인 또는 feature flag 기반 수정, consent 상세 보기와 재동의, optional candidate/contact consent, reference pre-listen before recording when allowed, lyric cue 확인 when allowed, retake, fallback upload, format/length guide 확인.
 - Required data:
   - selected song package and section
   - BPM/key default and learner override value
-  - consent policy versions
+  - consent policy document version/hash, consent scope, required/optional status
+  - consent snapshot eligibility, snapshot hash
   - consent types: `own_voice_processing`, `generated_preview`, `expert_review`, `retention_notice_ack`, `candidate_data_opt_in`, `contact_for_followup`
-  - alpha tester no recording/redistribution/public posting agreement
+  - no capture/redistribution/public posting agreement for reference audio, lyrics, generated preview, and app output
   - contact collection gate status
-- Key components:
-  - selected section summary
-  - BPM/key confirmation controls
-  - required consent checklist
-  - optional consent section
-  - alpha tester restriction acknowledgement
-  - proceed to upload CTA
-- Empty state: selected track이 없으면 Track Selection으로 되돌린다.
-- Loading state: consent policy와 song setup data loading.
-- Error state:
-  - consent policy load failure
-  - rights state changed before upload
-  - contact collection gate unavailable
-- Permission state:
-  - expert review consent를 거부하면 P0 preview job은 시작하지 않지만 계정 사용은 유지
-  - contact collection gate가 준비되지 않으면 contact opt-in UI는 숨기거나 disabled
-  - feature flag가 꺼진 사용자는 BPM/key correction read-only
-- Navigation:
-  - From: Track Selection
-  - To: Vocal Upload
-  - Back To: Track Selection
-- Success signal:
-  - valid upload의 100%가 consent status와 source asset id를 가짐
-  - 필수 동의가 없으면 engine processing에 도달하지 않음
-
-### 4. Vocal Upload / Upload Review
-
-- Purpose: 학습자가 본인 보컬 파일을 업로드하고, `completeAudioUpload` 전 validation 가능한 정보를 확인한다.
-- Primary action: `.wav` 또는 `.mp3` 보컬 파일을 업로드하고 processing 시작을 요청한다.
-- Secondary actions: 파일 교체, format/length guide 확인, BPM/key snapshot 재확인, consent로 돌아가기.
-- Required data:
+  - recorder session id
+  - mic permission status
+  - local take id
   - upload session id
   - presigned upload URL TTL
   - accepted MIME and extension
   - `P0_MAX_UPLOAD_BYTES`
   - selected song package id, target section id
   - consent snapshot reference
+  - rights flag snapshot reference
   - idempotency key
 - Key components:
-  - file picker/dropzone
+  - section guide header
+  - recorder entry gate for current consent, BPM/key, and usage restriction checks
+  - required consent checklist or compact current-consent summary
+  - optional consent section
+  - reference pre-listen player before recording when allowed
+  - permitted lyric cue when allowed
+  - mic permission prompt
+  - count-in
+  - recording timer
+  - input level meter
+  - record/stop controls
+  - own-take replay player
+  - retake CTA
+  - fallback file picker/dropzone when enabled
   - upload progress indicator
-  - selected file summary
-  - upload validation result
+  - selected take/file summary
+  - take validation result
   - "처리 시작" CTA mapped to `completeAudioUpload`
-- Empty state: 선택된 파일 없음.
+- Empty state: selected song/section이 없으면 Section Selection으로 되돌린다. Recorder 진입 후에는 아직 녹음된 take 없음.
 - Loading state:
+  - consent policy and song setup data loading
+  - mic permission requesting
+  - recorder initializing
   - upload session creating
-  - file uploading
+  - take/file uploading
   - `completeAudioUpload` committing
 - Error state:
+  - consent policy load failure
+  - consent policy document, version, scope, or required/optional status outdated
+  - rights state changed before recording or commit
+  - contact collection gate unavailable
+  - mic permission denied
+  - microphone unavailable
+  - recorder failed
   - unsupported format
   - duration exceeded after ingest
+  - silence or no voice detected
+  - clipping or too-low volume warning
   - file too large
   - upload URL expired
   - missing object after upload
-  - consent or rights state changed before commit
   - audit failure
 - Permission state:
   - signed-out/session expired 사용자는 재인증 필요
   - non-self voice suspicion은 P0에서 자동 판정하지 않지만 본인 음성 확인 동의 없이는 차단
+  - expert review consent를 거부하면 P0 preview job은 시작하지 않지만 계정 사용은 유지
+  - contact collection gate가 준비되지 않으면 contact opt-in UI는 숨기거나 disabled
+  - feature flag가 꺼진 사용자는 BPM/key correction read-only
   - learner reference audio upload는 허용하지 않음
+  - reference pre-listen과 lyrics display는 권리 플래그가 허용한 경우만 노출
+  - active microphone recording 중 reference audio playback은 중지
 - Navigation:
-  - From: Song Setup / Consent
+  - From: Section Selection / Part Selection
   - To: Processing Status after `completeAudioUpload`
-  - Back To: Song Setup / Consent
+  - Back To: Section Selection
 - Success signal:
+  - valid recording/fallback upload의 100%가 consent snapshot과 source asset id를 가짐
+  - 필수 동의가 없으면 engine processing에 도달하지 않음
   - `completeAudioUpload`가 audio asset, job id, initial StageResult, outbox event를 idempotent하게 기록
   - unauthorized or non-self voice job이 analysis, preview, synthesis에 도달하지 않음
+  - preventable rejection rate for silence/clipping/too-short/too-long can be measured before engine processing
 
 ### 5. Processing Status
 
@@ -188,7 +231,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
   - expected wait or observation timing
   - primary CTA by state
   - blocked/failed reason card
-- Empty state: active job이 없으면 Track Selection으로 이동할 CTA를 제공한다.
+- Empty state: active job이 없으면 Song Selection으로 이동할 CTA를 제공한다.
 - Loading state: job projection loading, state polling/subscription connecting.
 - Error state:
   - job not found
@@ -200,9 +243,9 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
   - educator/expert는 동의된 job만 조회
   - deletion 이후 playable output 제공 안 함
 - Navigation:
-  - From: Vocal Upload / Upload Review
+  - From: Record Take / Take Review
   - To: Result / Preview when `preview_ready` or `completed`
-  - To: Track Selection for retry/new job
+  - To: Song Selection for retry/new job
 - Success signal:
   - 100%의 P0 jobs가 final state와 output availability flags를 가짐
   - BFF는 canonical projection을 읽고 final state를 독자적으로 결정하지 않음
@@ -248,10 +291,10 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 - Navigation:
   - From: Processing Status
   - To: Data / Consent / Deletion Settings
-  - To: Track Selection for new job
+  - To: Song Selection for new job
   - To: Processing Status when report still running
 - Success signal:
-  - distinct alpha learner 10명 중 5명 이상이 첫 metric-eligible played preview에서 4점 이상
+  - distinct participating learner 10명 중 5명 이상이 첫 metric-eligible played preview에서 4점 이상
   - 4점 미만 rating의 100%가 failure tag 또는 `other` 포함
   - pitch-only success가 completed job으로 잘못 표시되지 않음
 
@@ -287,7 +330,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 - Navigation:
   - From: Result / Preview / Rating, Account menu
   - To: Result if playback still allowed
-  - To: Track Selection after deletion/new job
+  - To: Song Selection after deletion/new job
 - Success signal:
   - raw audio artifact의 100%가 30일 기본 retention과 deletion deadline을 가짐
   - deletion deadline 이후 24시간 내 deletion job 실행 여부 확인 가능
@@ -311,7 +354,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
   - section timeline table
   - rights/risk checklist
   - exposure decision panel
-  - named alpha tester allowlist control
+  - internal allowlist control
   - audit status indicator
 - Empty state: 등록된 package가 없으면 create package CTA를 보여준다.
 - Loading state: package/reference asset loading, upload session creating, exposure decision saving.
@@ -330,7 +373,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
   - To: Governance Evidence for audit/deletion records
   - To: Review Queue only if user also has review role
 - Success signal:
-  - `Mist` package가 `published` 또는 `unlicensed_internal_alpha_risk_accepted`와 named alpha tester exposure rule을 가짐
+  - `Mist` package가 `published` 또는 `unlicensed_internal_risk_accepted`와 internal allowlist exposure rule을 가짐
   - `rights_blocked` package는 learner selection과 playback URL 발급이 차단됨
 
 ### 9. Educator / Expert Review Queue
@@ -450,29 +493,36 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 ## Primary User Flow
 
 1. 사용자가 로그인하거나 회원가입 후 이메일 인증을 완료한다.
-2. 시스템은 role과 `alpha_named_tester` 여부를 확인한다.
-3. named alpha tester는 `Mist intro` alpha test track을 선택한다.
-4. 사용자는 BPM/key를 확인하거나 feature flag가 켜진 경우 수정한다.
-5. 사용자는 필수 consent와 alpha restriction을 확인한다.
-6. 사용자는 본인 보컬 `.wav` 또는 `.mp3` 파일을 업로드한다.
-7. 앱은 upload session을 만들고 object storage upload를 진행한다.
-8. 사용자가 처리 시작을 누르면 `completeAudioUpload`가 consent, rights, audit, object HEAD를 검증하고 job을 생성한다.
-9. Processing Status는 canonical job state와 output flags를 표시한다.
-10. `preview_ready`가 되면 사용자는 Result page에서 preview를 재생한다.
-11. 동일 preview artifact가 의미 있게 재생되면 `preview_played=true`가 되고 rating UI가 열린다.
-12. 사용자는 "이 preview가 내 목소리처럼 들린다"를 1-5점으로 평가한다.
-13. 1-3점이면 failure tag 또는 `other`를 제출한다.
-14. 사용자는 pitch feedback과 quality summary를 확인하고, 필요 시 deletion/consent settings로 이동한다.
+2. 시스템은 role과 내부 접근 권한을 확인한다.
+3. 접근 권한이 있는 학습자는 `Mist` song을 선택한다.
+4. 사용자는 `intro 0:00-0:28` section을 선택한다.
+5. 사용자는 recorder 화면에 진입한다. 이 화면의 entry gate에서 BPM/key를 확인하거나 feature flag가 켜진 경우 수정하고, 필수 consent가 현재 policy document/version/scope/required-optional 상태와 일치하는지 확인한다.
+6. consent가 없거나 outdated이면 recorder 화면 안에서 재동의를 완료해야 녹음/제출을 진행할 수 있다.
+7. 사용자는 recorder 화면에서 section guide를 확인한다. 권리 플래그가 허용하면 recording 전 section pre-listen 또는 permitted lyric cue를 볼 수 있다.
+8. 사용자는 본인 목소리 take를 녹음하고, replay 후 retake 또는 submit을 선택한다.
+9. 앱은 recorder take 또는 fallback upload를 presigned object storage path로 전송한다.
+10. 사용자가 처리 시작을 누르면 `completeAudioUpload`가 consent snapshot, rights flag snapshot, audit, object HEAD를 검증하고 job을 생성한다.
+11. Processing Status는 canonical job state와 output flags를 표시한다.
+12. `preview_ready`가 되면 사용자는 Result page에서 preview를 재생한다.
+13. 동일 preview artifact가 의미 있게 재생되면 `preview_played=true`가 되고 rating UI가 열린다.
+14. 사용자는 "이 preview가 내 목소리처럼 들린다"를 1-5점으로 평가한다.
+15. 1-3점이면 failure tag 또는 `other`를 제출한다.
+16. 사용자는 pitch feedback과 quality summary를 확인하고, 필요 시 deletion/consent settings로 이동한다.
 
 ## Alternate / Edge Flows
 
-- Not alpha eligible: Track Selection에서 `Mist intro`를 선택할 수 없고 접근 불가 사유를 본다.
+- Not eligible: Song Selection에서 `Mist`를 선택할 수 없고 접근 불가 사유를 본다.
 - Rights blocked: selection, `completeAudioUpload`, playback URL issuance에서 모두 차단하고 다른 곡 선택 또는 문의 CTA를 제공한다.
-- Consent missing: Song Setup / Consent로 돌려보내고 어떤 consent가 부족한지 보여준다.
+- Consent missing or outdated: Record Take / Take Review의 entry gate에서 차단하고 어떤 consent가 부족하거나 오래되었는지 보여준다. 재동의 trigger는 policy document, version, scope, required/optional status, reference/lyrics display scope 변경을 포함한다.
+- Reference pre-listen unavailable: recorder에서는 reference player를 숨기거나 disabled 처리하고 녹음은 계속 가능하게 한다.
+- Reference pre-listen active: 녹음 시작 전에 reference playback을 정지한다.
+- Lyrics unavailable: full lyrics와 line lyrics를 숨기고 section label, timestamp, expected duration만 제공한다.
+- Mic denied or unavailable: mic 재시도와 권한 설정 안내를 제공하고, fallback upload가 enabled인 경우 대체 경로를 제공한다.
 - Upload URL expired: 새 upload session 생성 CTA를 제공한다.
-- Unsupported format or size: Vocal Upload에서 `.wav`, `.mp3`, 50 MB file-size guard를 안내한다.
-- Duration exceeded: ingest 이후 Upload/Status에서 60초 hard max와 trim/reupload CTA를 보여준다.
-- Section mismatch: full-song으로 조용히 처리하지 않고 잘라서 재업로드 CTA를 보여준다.
+- Unsupported fallback format or size: Record Take에서 `.wav`, `.mp3`, 50 MB file-size guard를 안내한다.
+- Silence, clipping, too low volume, or no voice: Take Review에서 retake를 권장한다.
+- Duration exceeded: ingest 이후 Record Take/Status에서 60초 hard max와 trim/retake/reupload CTA를 보여준다.
+- Section mismatch: full-song으로 조용히 처리하지 않고 retake 또는 잘라서 재업로드 CTA를 보여준다.
 - Timeout: `completeAudioUpload.committed_at` 기준 60분 초과 시 `failed` 또는 `failed_with_partial_artifacts`로 terminalize한다.
 - Preview unavailable but pitch report available: partial result로 음정 리포트 보기와 재시도 CTA를 제공하고 primary self-voice rating은 받지 않는다.
 - Preview playable in partial artifact state: preview 재생과 rating은 가능하지만 job completion success로 계산하지 않는다.
@@ -486,9 +536,9 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 | Page | Feature | User action | Required data | State coverage |
 | --- | --- | --- | --- | --- |
 | Login / Signup | Account And Role Access | 로그인, 회원가입, 이메일 인증 | user, role, session, verification | signed_out, authenticated, session_expired, locked_or_blocked |
-| Alpha Eligibility / Track Selection | Admin Song Package And Rights Gate | `Mist intro` 선택 | song package, rights state, alpha flag, risk acceptance | empty, loading, rights_blocked, under_review, permission denied |
-| Song Setup / Consent | Learner Song Selection, Consent, And Vocal Upload | 필수 동의, BPM/key 확인 | consent versions, BPM/key, alpha restriction, contact gate | awaiting_consent, blocked_by_policy, optional consent unavailable |
-| Vocal Upload / Upload Review | Audio Ingest And Section Validation | 파일 업로드, 처리 시작 | upload session, file metadata, consent snapshot, idempotency key | uploading, upload_validating, upload_rejected, commit error |
+| Access Eligibility / Song Selection | Admin Song Package And Rights Gate | `Mist` song 선택 | song package, rights state, eligibility flag, risk acceptance | empty, loading, rights_blocked, under_review, permission denied |
+| Section Selection / Part Selection | Learner Song And Section Selection, Consent, Recording, And Upload | `intro` section 선택 | section map, timestamp, guide flags, rights state | empty, loading, section blocked, rights changed |
+| Record Take / Take Review | Learner Song And Section Selection, Consent, Recording, And Upload; Audio Ingest And Section Validation | BPM/key와 consent gate 확인, 녹음, replay, retake, 제출 | consent policy document/version/scope, consent snapshot eligibility, BPM/key, usage restriction, contact gate, recorder session, mic permission, take id, upload session, rights flag snapshot | awaiting_consent, blocked_by_policy, blocked_by_consent_version, mic_permission_pending, recording, take_ready, take_needs_retake, uploading, commit error |
 | Processing Status | Canonical Job State And Partial Artifact Handling | 처리 상태 확인 | job projection, stage summaries, output flags | created, queued, processing, preview_ready, failed, blocked, needs_review |
 | Result / Preview / Rating | Self-voice Section Preview Generation And App-only Playback | preview 재생, rating 제출 | preview artifact, playback eligibility, pitch report, rating status | preview_ready, completed, playback_blocked, report loading, rating_required |
 | Result / Preview / Rating | Result Review, Rating, And Failure Tagging | failure tag 제출, playback 문제 신고 | rating prompt, failure taxonomy, playback event | failure_tags_required, playback_problem_reported, submission error |
@@ -501,26 +551,32 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 ## UX Risks
 
 - `Mist intro`는 나레이션 중심이라 pitch feedback 만족도가 낮을 수 있다. Result page에서 pitch score를 과대 강조하지 않아야 한다.
-- `unlicensed_internal_alpha_risk_accepted`는 권리 확보가 아니다. Track Selection과 Admin에서 일반 publish처럼 보이면 안 된다.
+- `unlicensed_internal_risk_accepted`는 권리 확보가 아니다. Song Selection과 Admin에서 일반 publish처럼 보이면 안 된다.
+- Song Selection과 Section Selection을 합치면 향후 verse/chorus 확장 때 정보 구조가 깨진다. P0에서 선택지가 하나여도 page/route/state를 분리한다.
+- Reference pre-listen이 active recording 중 섞이면 원곡이 사용자 take에 유입되어 품질과 권리 리스크가 커진다. 녹음 시작 전에 반드시 정지한다.
+- Lyrics display가 권리 scope 없이 전체 가사처럼 보이면 저작권 리스크가 커진다. 권리 플래그가 없으면 section label/timestamp만 보여준다.
+- "녹음 금지" 문구가 본인 목소리 녹음 금지로 오해되면 core flow를 망친다. reference audio, lyrics, preview, app output의 외부 캡처 금지로 표현한다.
+- First-login consent를 너무 넓게 해석하면 later policy change가 누락된다. recorder entry gate와 job snapshot 검증에서 re-consent trigger를 명확히 보여줘야 한다.
 - `completed`가 rating 완료로 오해될 수 있다. job state와 evaluation state를 화면에서 분리해야 한다.
 - 긴 처리 시간 동안 빈 spinner만 보여주면 이탈이 커질 수 있다. Processing Status는 stage와 plain-language reason을 보여줘야 한다.
 - 실패/부분 성공 상태에서 preview 가능 여부가 섞이면 metric이 흐려진다. `preview_available`, `playback_blocked`, `pipeline_mode`를 화면과 analytics에서 분리해야 한다.
 - `playback_problem_reported`를 낮은 rating과 섞으면 self-voice 품질 metric이 오염된다.
 - consent 철회와 deletion request의 차이가 불분명하면 신뢰가 무너질 수 있다. 철회 영향과 삭제 일정은 명확해야 한다.
-- contact follow-up은 optional alpha ops다. core preview flow의 필수 단계처럼 보여서는 안 된다.
+- contact follow-up은 optional internal ops다. core preview flow의 필수 단계처럼 보여서는 안 된다.
 - educator/expert review 화면에서 raw audio 접근이 가능해 보이면 privacy expectation이 깨진다.
 - admin 화면이 full operations console처럼 커지면 P0 scope creep이 발생한다.
 
 ## Open Questions
 
-- `unlicensed_internal_alpha_risk_accepted`를 실제로 켜기 위한 risk acceptance record의 source of truth는 PM 문서, DB, ticket 중 어디인가?
-- P0 alpha 기간 동안 second reviewer를 둘 수 있는가? 없으면 Governance Evidence는 break-glass disabled 상태를 어떻게 보여줄 것인가?
+- `unlicensed_internal_risk_accepted`를 실제로 켜기 위한 risk acceptance record의 source of truth는 PM 문서, DB, ticket 중 어디인가?
+- P0 내부 운영 기간 동안 second reviewer를 둘 수 있는가? 없으면 Governance Evidence는 break-glass disabled 상태를 어떻게 보여줄 것인가?
 - `contact_for_followup`은 P0 화면에서 구현할 것인가, 아니면 contact collection gate 준비 전까지 운영 외부 프로세스로 둘 것인가?
-- 권리 evidence 없는 `Mist` 제한 노출은 alpha 종료 전 어느 시점에 `rights_pending`, `published`, 또는 `rights_blocked`로 재판정할 것인가?
+- 권리 evidence 없는 `Mist` 제한 노출은 내부 운영 종료 전 어느 시점에 `rights_pending`, `published`, 또는 `rights_blocked`로 재판정할 것인가?
 - mobile app과 web에서 admin/review/governance surface를 모두 제공할 것인가, 아니면 learner app은 mobile-first, internal surface는 web-first로 제한할 것인가?
+- reference pre-listen과 lyrics display flags의 source of truth는 admin rights/risk record, DB package field, ticket 중 어디인가?
 
 ## Recommended Next Skill
 
 `spec-to-tickets`
 
-Page ownership, primary CTA, page states, permission states, navigation, feature mapping이 개발 티켓으로 분해 가능한 수준으로 정리됐다. 남은 Open Questions는 alpha 운영/권리 gate에 관한 launch decision이며, learner core flow와 internal surface의 ticket breakdown은 진행 가능하다.
+Page ownership, primary CTA, page states, permission states, navigation, feature mapping이 개발 티켓으로 분해 가능한 수준으로 정리됐다. 남은 Open Questions는 내부 운영/권리 gate와 reference/lyrics flag source of truth에 관한 launch decision이며, learner core flow와 internal surface의 ticket breakdown은 진행 가능하다.
