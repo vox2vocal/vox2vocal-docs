@@ -51,7 +51,102 @@ engine-audio-ingest
 
 운영 안전장치와 품질 검증은 `engine-safety-rights`, `engine-evaluation`을 통해 각 단계에서 호출되는 구조로 본다. 표현 확장과 음색 변환은 `engine-expression`, `engine-voice-conversion`에서 단계적으로 고도화한다.
 
-## 2. 문서 읽는 순서
+## 2. 문서 인덱스와 읽는 순서
+
+문서 작업 또는 구현 작업을 시작할 때는 먼저 아래 인덱스에서 관련 문서를 찾고, 그 다음 작업 유형별 읽는 순서를 따른다.
+
+### 전체/운영 문서
+
+| 문서 | 언제 읽는가 |
+| --- | --- |
+| [Workspace README](vox2vocal-docs/workspace/README.md) | workspace 구조, 서비스 역할, root AGENT 원본 위치를 확인할 때 |
+| [Git Policy](vox2vocal-docs/workspace/git-policy.md) | Git identity, commit convention, hook, CI, ruleset, force push 정책을 확인할 때 |
+| [Root Agent Source](vox2vocal-docs/root/AGENT.md) | 루트 `AGENT.md` 원본을 docs repo 기준으로 갱신할 때 |
+
+### 제품/기획 문서
+
+| 문서 | 언제 읽는가 |
+| --- | --- |
+| [MVP PRD](vox2vocal-docs/pm/vox2vocal-mvp-prd.md) | 제품 목표, 사용자 흐름, MVP 요구사항, 성공 기준을 확인할 때 |
+| [MVP PRD Review](vox2vocal-docs/pm/vox2vocal-mvp-prd-review.md) | PRD의 누락, 모호성, 리스크를 확인할 때 |
+| [MVP Feature Definition](vox2vocal-docs/pm/vox2vocal-mvp-feature-definition.md) | MVP 기능 범위, 상태 모델, 권리/동의/검토 요구사항을 구현 단위로 확인할 때 |
+| [PMI Functional Spec Draft](vox2vocal-docs/pmi-functional-spec-draft.md) | 초기 기능 명세 초안 또는 제품 방향의 배경을 확인할 때 |
+
+### 프론트엔드 문서
+
+| 문서 | 언제 읽는가 |
+| --- | --- |
+| [Frontend Architecture](vox2vocal-docs/frontend/architecture.md) | app 폴더 구조, route/feature/shared 계층, 상태 관리 기준을 확인할 때 |
+| [Design System Guide](vox2vocal-docs/frontend/design-system-guide.md) | 반응형 layout, token, component state, 접근성, QA 기준을 확인할 때 |
+| [Frontend Design](vox2vocal-docs/frontend/design.md) | 브랜드 컬러, 인증 화면, 자산 사용 기준을 빠르게 확인할 때 |
+| [App Agent](vox2vocal-app/AGENTS.md) | Expo app 작업 전 버전별 Expo 지침과 task flow를 확인할 때 |
+
+### 테스트/품질 문서
+
+| 문서 | 언제 읽는가 |
+| --- | --- |
+| [User Service Testing Guide](vox2vocal-docs/testing/user-service-testing-guide.md) | user-service 테스트 경계, Prisma/repository/handler 테스트를 작성할 때 |
+| [API Gateway Testing Guide](vox2vocal-docs/testing/api-gateway-testing-guide.md) | api-gateway controller, token, gRPC client, proto contract 테스트를 작성할 때 |
+| [Audio Upload MinIO E2E Test Plan](vox2vocal-docs/testing/audio-upload-minio-e2e-test-plan.md) | 오디오 업로드와 MinIO 연동 E2E 범위를 확인할 때 |
+
+### 인프라/DB/로그 문서
+
+| 문서 | 언제 읽는가 |
+| --- | --- |
+| [Local Run Guide](vox2vocal-docs/infra/local-run-guide.md) | minikube, Kubernetes, 서비스 로컬 실행, port-forward 절차를 확인할 때 |
+| [Infra Logging Guide](vox2vocal-docs/infra/logging-guide.md) | Kubernetes 로그 확인, 문제 분석, logging 운영 절차를 확인할 때 |
+| [Prisma Migration Guide](vox2vocal-docs/prisma/prisma-migration-guide.md) | user-service Prisma schema와 migration을 변경할 때 |
+| [Infra README](vox2vocal-infra/README.md) | infra repo의 Kubernetes manifest와 로컬 클러스터 구성을 확인할 때 |
+| [Infra Agent](vox2vocal-infra/AGENT.md) | infra repo 작업 규칙, commit 기준, logging 운영 기준을 확인할 때 |
+
+### 엔진 문서
+
+| 문서 | 언제 읽는가 |
+| --- | --- |
+| [Engine Overview](vox2vocal-docs/engine/README.md) | 전체 엔진 pipeline, 입력/출력 계약, MVP 연결 흐름을 확인할 때 |
+| [Audio Ingest README](vox2vocal-docs/engine/audio-ingest/README.md) | 오디오 입력, 표준화, storage, event contract를 확인할 때 |
+| [Audio Ingest Development Preparation](vox2vocal-docs/engine/audio-ingest/DEVELOPMENT_PREPARATION.md) | audio ingest 구현 준비, 개발 순서, 환경 전제를 확인할 때 |
+| [Audio Ingest Technical Research](vox2vocal-docs/engine/audio-ingest/TECHNICAL_RESEARCH.md) | audio ingest 기술 조사와 라이브러리 판단 근거를 확인할 때 |
+| [Voice Analysis](vox2vocal-docs/engine/voice-analysis/README.md) | 음성 분석 엔진의 역할과 출력 지표를 확인할 때 |
+| [Voice Pitch](vox2vocal-docs/engine/voice-pitch/README.md) | pitch/F0 분석과 pitch feedback 요구사항을 확인할 때 |
+| [Phoneme Alignment](vox2vocal-docs/engine/phoneme-alignment/README.md) | phoneme/syllable alignment 범위와 후속 연결을 확인할 때 |
+| [Rhythm Timing](vox2vocal-docs/engine/rhythm-timing/README.md) | rhythm/timing 분석 범위와 입력/출력 기준을 확인할 때 |
+| [Melody Mapping](vox2vocal-docs/engine/melody-mapping/README.md) | melody mapping과 target pitch 비교 기준을 확인할 때 |
+| [Singing Synthesis](vox2vocal-docs/engine/singing-synthesis/README.md) | singing synthesis 범위와 downstream contract를 확인할 때 |
+| [Vocoder Render](vox2vocal-docs/engine/vocoder-render/README.md) | vocoder rendering 범위와 산출물 기준을 확인할 때 |
+| [Mix Master](vox2vocal-docs/engine/mix-master/README.md) | mix/master 산출물과 품질 처리 범위를 확인할 때 |
+| [Safety Rights](vox2vocal-docs/engine/safety-rights/README.md) | 권리, 동의, 안전 차단 기준을 확인할 때 |
+| [Evaluation](vox2vocal-docs/engine/evaluation/README.md) | 엔진 평가, 품질 metric, 비교 기준을 확인할 때 |
+| [Expression](vox2vocal-docs/engine/expression/README.md) | 표현 확장과 style/expression 처리 범위를 확인할 때 |
+| [Voice Conversion](vox2vocal-docs/engine/voice-conversion/README.md) | voice conversion 범위와 안전 전제를 확인할 때 |
+| [Engine Event Contract](engine-audio-ingest/docs/ENGINE_EVENT_CONTRACT.md) | 구현 repo의 audio ingest event payload와 contract를 확인할 때 |
+| [Audio Ingest Agent](engine-audio-ingest/AGENT.md) | audio ingest 구현 repo 작업 규칙과 Python convention을 확인할 때 |
+| [Audio Ingest Architecture](engine-audio-ingest/ARCHITECTURE.md) | 구현 repo의 Python 구조, module 책임, 코드 convention을 확인할 때 |
+
+### 로깅 도메인 문서
+
+| 문서 | 언제 읽는가 |
+| --- | --- |
+| [Logging Overview](vox2vocal-docs/engine/logging/README.md) | engine logging 문서 세트의 진입점을 확인할 때 |
+| [Logging Development Direction](vox2vocal-docs/engine/logging/development-direction.md) | logging MVP 개발 방향과 단계별 범위를 확인할 때 |
+| [Logging Development Guide](vox2vocal-docs/engine/logging/development-guide.md) | logging 구현 규칙과 개발 절차를 확인할 때 |
+| [Logging Operations Guide](vox2vocal-docs/engine/logging/operations-guide.md) | 운영 중 로그 확인, 알림, 장애 대응 절차를 확인할 때 |
+| [Log Domain Guide](vox2vocal-docs/engine/logging/log-domain-guide.md) | 로그 event domain과 field 기준을 확인할 때 |
+| [Engine Log Index](vox2vocal-docs/engine/logging/engine-log-index.md) | 엔진별 log event index를 확인할 때 |
+| [Audit Data Guide](vox2vocal-docs/engine/logging/audit-data-guide.md) | audit table, digest, retention 기준을 확인할 때 |
+| [Security Audit Guide](vox2vocal-docs/engine/logging/security-audit-guide.md) | 보안 감사 로그와 unauthorized access 추적 기준을 확인할 때 |
+| [Storage Policy](vox2vocal-docs/engine/logging/storage-policy.md) | 로그 저장, 보관, 삭제 정책을 확인할 때 |
+
+### 서비스별 로컬 지침
+
+| 문서 | 언제 읽는가 |
+| --- | --- |
+| [API Gateway Agent](vox2vocal-api-gateway/AGENT.md) | api-gateway 테스트와 contract 작업 전 |
+| [User Service Agent](vox2vocal-user-service/AGENT.md) | user-service 테스트와 domain 작업 전 |
+| [BFF README](vox2vocal-bff-server/README.md) | bff-server 실행, GraphQL, gateway client 구조를 확인할 때 |
+| [Worker README](vox2vocal-worker/README.md) | worker 실행과 queue 처리 구조를 확인할 때 |
+
+### 작업 유형별 읽는 순서
 
 작업 유형별로 아래 순서로 문서를 읽는다.
 
@@ -59,8 +154,8 @@ engine-audio-ingest
 
 서비스별 테스트 가이드를 먼저 읽고, 그 다음 해당 서비스의 `AGENT.md`가 있으면 함께 확인한다.
 
-- `user-service`: [User Service Testing Guide](docs/testing/user-service-testing-guide.md), [user-service/AGENT.md](user-service/AGENT.md)
-- `api-gateway`: [API Gateway Testing Guide](docs/testing/api-gateway-testing-guide.md), [api-gateway/AGENT.md](api-gateway/AGENT.md)
+- `user-service`: [User Service Testing Guide](vox2vocal-docs/testing/user-service-testing-guide.md), [vox2vocal-user-service/AGENT.md](vox2vocal-user-service/AGENT.md)
+- `api-gateway`: [API Gateway Testing Guide](vox2vocal-docs/testing/api-gateway-testing-guide.md), [vox2vocal-api-gateway/AGENT.md](vox2vocal-api-gateway/AGENT.md)
 
 아직 전용 테스트 가이드가 없는 프로젝트는 해당 `package.json`, `src/`, 기존 `test/`를 먼저 확인하고 기존 패턴보다 스택의 테스트 경계를 우선한다.
 
@@ -68,36 +163,36 @@ engine-audio-ingest
 
 `user-service`의 Prisma schema, migration, PostgreSQL 적용 이력을 수정할 때는 아래 문서를 먼저 읽는다.
 
-- [Prisma Migration Guide](docs/prisma/prisma-migration-guide.md)
+- [Prisma Migration Guide](vox2vocal-docs/prisma/prisma-migration-guide.md)
 
 ### 로컬 실행/인프라/로그 작업
 
 서비스 실행, Kubernetes, minikube, PostgreSQL, Redis, logging 관련 작업은 아래 문서를 먼저 읽는다.
 
-- [Workspace README](docs/workspace/README.md)
-- [Local Run Guide](docs/infra/local-run-guide.md)
-- [Logging Guide](docs/infra/logging-guide.md)
-- [Infra README](infra/README.md)
+- [Workspace README](vox2vocal-docs/workspace/README.md)
+- [Local Run Guide](vox2vocal-docs/infra/local-run-guide.md)
+- [Logging Guide](vox2vocal-docs/infra/logging-guide.md)
+- [Infra README](vox2vocal-infra/README.md)
 
 ### 앱 작업
 
 `app` 작업은 앱 내부 지침을 먼저 따른다.
 
-- [app/AGENTS.md](app/AGENTS.md)
-- [app/README.md](app/README.md)
+- [vox2vocal-app/AGENTS.md](vox2vocal-app/AGENTS.md)
+- [vox2vocal-app/README.md](vox2vocal-app/README.md)
 
-Expo는 버전 변화가 잦으므로 `app/AGENTS.md`의 Expo 문서 확인 지침을 우선한다.
+Expo는 버전 변화가 잦으므로 `vox2vocal-app/AGENTS.md`의 Expo 문서 확인 지침을 우선한다.
 
 ### 엔진 작업
 
 엔진 작업은 먼저 전체 엔진 문서를 읽고, 그 다음 해당 엔진 디렉터리의 지침을 확인한다.
 
-- 전체 구조: [Engine Architecture](docs/engine/README.md)
-- 오디오 입력: [Audio Ingest Engine](docs/engine/audio-ingest/README.md), [engine-audio-ingest/AGENT.md](engine-audio-ingest/AGENT.md)
-- 음성 분석: [Voice Analysis Engine](docs/engine/voice-analysis/README.md)
-- 피치 분석: [Voice Pitch Engine](docs/engine/voice-pitch/README.md)
+- 전체 구조: [Engine Architecture](vox2vocal-docs/engine/README.md)
+- 오디오 입력: [Audio Ingest Engine](vox2vocal-docs/engine/audio-ingest/README.md), [engine-audio-ingest/AGENT.md](engine-audio-ingest/AGENT.md)
+- 음성 분석: [Voice Analysis Engine](vox2vocal-docs/engine/voice-analysis/README.md)
+- 피치 분석: [Voice Pitch Engine](vox2vocal-docs/engine/voice-pitch/README.md)
 
-아직 구현 저장소가 없는 엔진도 `docs/engine/<engine-name>/README.md`의 입력/출력, MVP 범위, 연결 엔진을 먼저 기준으로 삼는다.
+아직 구현 저장소가 없는 엔진도 `vox2vocal-docs/engine/<engine-name>/README.md`의 입력/출력, MVP 범위, 연결 엔진을 먼저 기준으로 삼는다.
 새 엔진 저장소를 만들 때는 디렉터리 이름과 GitHub repository 이름을 모두 `engine-xxx` 형식으로 맞춘다.
 
 ## 3. 서비스별 테스트 관점
@@ -220,7 +315,7 @@ npm.cmd test -- --runInBand
 ## 5. 문서 유지 규칙
 
 - 새 테스트 패턴을 도입하면 해당 서비스 테스트 가이드를 함께 갱신한다.
-- 새 엔진을 추가하거나 엔진 간 입출력 계약을 바꾸면 `docs/engine/README.md`와 해당 엔진 문서를 함께 갱신한다.
+- 새 엔진을 추가하거나 엔진 간 입출력 계약을 바꾸면 `vox2vocal-docs/engine/README.md`와 해당 엔진 문서를 함께 갱신한다.
 - 새 프로젝트별 에이전트 지침이 필요하면 해당 디렉터리에 `AGENT.md`를 둔다.
 - 루트 `AGENT.md`는 상세 구현 규칙보다 문서 탐색과 서비스별 기술 스택 인덱싱에 집중한다.
 
