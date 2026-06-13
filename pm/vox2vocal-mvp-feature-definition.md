@@ -87,7 +87,7 @@ P0는 `Mist` 전체 section map을 song package로 보관하되, 기본 target�
 - Edge cases:
   - 등록된 reference audio asset과 section timestamp가 어긋나면 publish를 보류한다.
   - rights complaint가 들어오면 해당 song package와 관련 generated preview playback을 차단한다.
-  - BPM/key는 기본값으로 등록하고 P0에서는 admin-only로 수정한다. 학습자 BPM/key correction controls는 Later 범위다.
+  - BPM/key는 기본값으로 등록하고 P0 기본 동작은 admin-only 수정이다. 단, P0 alpha에서는 feature flag로 학습자 BPM/key correction controls를 켠다.
   - lyrics는 P0 선택값이며, lyrics sync가 없더라도 publish를 막지 않는다.
 - Dependencies:
   - Admin song package API 또는 seed/admin-only 등록 경로
@@ -403,20 +403,20 @@ P0는 `Mist` 전체 section map을 song package로 보관하되, 기본 target�
 | P0 화면 범위와 내부 운영 범위가 섞임 | P0 화면은 learner core flow, 제한된 admin 화면, 별도 educator/expert review 화면으로 둔다. full admin console은 Out of Scope다. | 없음 |
 | `Mist intro` timestamp가 확정처럼 보임 | `0:00-0:28`은 사용자가 확인한 P0 target timestamp로 확정한다. 실제 등록 reference audio asset이 바뀌면 재검수한다. | 없음 |
 | Failure tag 목록이 질문과 충돌 | failure tag taxonomy v0.1은 P0 confirmed로 둔다. alpha 후 versioning으로 조정한다. | 없음 |
-| BPM/key correction 범위가 모호함 | P0 learner 화면에는 노출하지 않고 admin-only 수정으로 닫는다. learner correction controls는 Later다. | 예외적으로 learner에게 feature flag로 열지 여부 |
+| BPM/key correction 범위가 모호함 | P0 기본값은 admin-only 수정으로 두되, P0 alpha에서는 feature flag로 learner correction controls를 켠다. | 없음 |
 | Job state owner 미확정 | P0 canonical owner는 `worker` repo의 `conversion-job-state` bounded module로 둔다. | 실제 구현 owner 팀/담당자 |
 | Upload/storage 계약 미확정 | P0는 BFF/API Gateway가 presigned URL을 발급하고 client가 object storage에 직접 업로드한다. BFF는 audio body를 proxy하지 않는다. Upload TTL은 15분, playback TTL은 5분으로 시작한다. | 없음 |
 | Mock/partial-real/real synthesis 기준 미확정 | mock은 UI/flow 검증 전용이며 alpha self-voice success로 계산하지 않는다. partial-real 이상을 alpha success 후보로 인정하고 real synthesis를 선호 경로로 둔다. | 없음 |
 | Admin/reviewer path 미확정 | 제한된 admin 화면과 별도 educator/expert review 화면을 P0에 포함한다. | 화면 상세 flow는 page-flow-planner에서 확정 |
-| 연락 목적 개인정보 처리 | `other` 자유입력은 feedback 텍스트로만 쓰고, SNS/메일 발송용 연락처는 별도 필드와 별도 동의로 수집한다. 연락처는 복호화 가능한 암호화 저장 대상으로 둔다. | 실제 발송 채널, 동의 문구, 보관 기간 |
+| 연락 목적 개인정보 처리 | `other` 자유입력은 feedback 텍스트로만 쓰고, SNS/메일 발송용 연락처는 별도 필드와 별도 동의로 수집한다. 연락처는 복호화 가능한 암호화 저장 대상으로 두고 alpha 종료 후 90일까지만 보관한다. | 없음 |
 | owner 팀 부재 | P0에서는 개발자인 사용자가 deletion owner, policy owner, platform/storage owner를 겸임한다. | 제품화 전 역할 분리 시점 |
 
 ## P0 Surface Boundary
 
 | Actor | P0 Surface | P0 Internal Path | Later | Out of Scope |
 | --- | --- | --- | --- | --- |
-| Learner | signup/login, song selection, consent, upload, processing status, preview playback, pitch feedback, rating/failure tags, deletion request | 없음 | progress history, multi-song practice, learner BPM/key correction | reference audio upload, export/share |
-| Admin | 제한된 admin 화면에서 song package 등록, section map 확인, rights status 표시, publish/block 처리 | seed/script fallback은 개발 초기 보조 수단으로만 사용 | full song catalog console, provider automation | general-purpose operator console |
+| Learner | signup/login, song selection, consent, upload, BPM/key correction behind feature flag, processing status, preview playback, pitch feedback, rating/failure tags, deletion request | 없음 | progress history, multi-song practice, full correction controls | reference audio upload, export/share |
+| Admin | 제한된 admin 화면에서 reference audio 직접 업로드, song package 등록, section map 확인, rights/risk status 표시, publish/block 처리 | seed/script fallback은 개발 초기 보조 수단으로만 사용 | full song catalog console, provider automation, user song upload moderation | general-purpose operator console |
 | Educator/Expert | 별도 review 화면에서 동의된 job의 preview, pitch report, failure tags, quality summary 검토 | raw audio 직접 접근 없이 reviewable result만 확인 | review queue 고도화, student progress dashboard | raw audio 기본 접근 |
 | Engine Developer | 없음 | stage result, artifact refs, technical tags, debug-only limited access | richer observability dashboard | unrestricted raw audio access |
 | Product/QA | 없음 | pseudonymous metrics, rating/failure taxonomy, alpha report | analytics dashboard | user-identifiable raw audio review |
@@ -461,6 +461,32 @@ published -> retired
 
 P0 risk acceptance record는 제한된 admin 화면의 rights/risk record에 저장한다. 해당 화면이 구현되기 전에는 PM 문서 또는 ticket에 임시로 남기고, admin 화면 구현 후 migration한다.
 
+P0 reference audio file handling:
+
+- Reference audio는 사용자가 제한된 admin 화면에서 직접 업로드한다.
+- 학습자나 일반 사용자의 reference audio upload는 P0에서 허용하지 않는다.
+- 업로드 시 file hash, original filename, uploader id, upload timestamp, source note, risk state, retention deadline을 기록한다.
+- 수익화 또는 외부 beta 전 정식 음원 권리 확보 방식은 deferred productization task로 남긴다.
+
+## Signup And Upload Verification Direction
+
+회원가입 인증은 "계정 소유자 확인"이고, 업로드/권리 확인은 "파일과 목소리를 사용할 권리 확인"이다. 따라서 강한 회원가입 인증을 도입해도 reference audio 권리나 본인 음성 사용 권한이 자동으로 해결되지는 않는다.
+
+P0 alpha:
+
+- 일반 학습자는 email/password + email verification으로 시작한다.
+- 관리자, 교육자/전문가, 내부 reviewer는 email verification 이후 passkey 또는 OTP 기반 MFA를 요구하는 방향을 권장한다.
+- Reference audio는 제한된 admin 화면에서 개발자인 사용자가 직접 업로드한다.
+- 본인 음성 확인, generated preview 동의, expert review 동의는 회원가입 1회가 아니라 P0 job 생성 시 consent snapshot으로 저장한다.
+
+Future beta/product:
+
+- passkey/WebAuthn을 우선 로그인 옵션으로 추가한다.
+- 민감 데이터 접근, admin publish, decrypt contact, break-glass 같은 고위험 action에는 step-up authentication을 요구한다.
+- 필요 시 active voice verification을 upload/job 단위 보조 검증으로 추가한다. 음성 자체를 단독 로그인 수단으로 쓰지는 않는다.
+
+Sources: [NIST SP 800-63B](https://pages.nist.gov/800-63-4/sp800-63b.html), [OWASP Authentication Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html), [W3C WebAuthn](https://www.w3.org/TR/webauthn-3/).
+
 ## Consent Lifecycle
 
 | Consent Type | Required For P0 Job | Default | Withdrawal Behavior |
@@ -475,6 +501,53 @@ P0 risk acceptance record는 제한된 admin 화면의 rights/risk record에 저
 Consent record는 최소 `consent_type`, `version`, `scope`, `required`, `granted_at`, `withdrawn_at`, `source_job_id`, `policy_document_version`을 가진다. Candidate data opt-in 철회는 operational audit과 deletion evidence 보관 의무까지 자동 삭제한다는 뜻이 아니다. 다만 future model-improvement dataset에는 포함하지 않는다.
 
 SNS, 메일 등 추후 연락을 위한 개인정보는 failure tag의 `other` 자유입력에 받지 않는다. 연락처는 별도 필드와 별도 동의로 수집한다. 표시 화면에서는 마스킹하고, 발송 등 필요한 목적에서는 권한 있는 backend/service만 복호화할 수 있도록 암호화 저장한다. 복호화 접근은 audit 대상이다.
+
+P0 contact collection:
+
+- Contact channels: email, SNS account
+- Allowed purposes: alpha follow-up, 오류 안내, 인터뷰 요청
+- Not allowed without separate consent: marketing, 광고성 메시지, 제3자 제공
+- Retention: alpha 운영 기간 동안 보관하고 alpha 종료 후 90일 이내 삭제한다.
+- Withdrawal: 사용자가 `contact_for_followup` 동의를 철회하면 발송을 즉시 중지하고, 연락처 암호문과 검색용 hash는 30일 이내 삭제한다.
+- Evidence: 동의, 철회, 삭제 evidence는 raw contact value 없이 최대 1년 보관할 수 있다.
+
+## Contact Data Encryption And Key Management Guide
+
+연락처는 마스킹만으로는 충분하지 않다. 실제 발송이 필요하므로 복호화 가능한 암호화 저장을 사용하되, 평문 노출 경로를 최소화한다. OWASP Cryptographic Storage Cheat Sheet는 민감정보 저장 최소화, 인증된 암호화 모드, key와 data 분리, key rotation을 권장한다. OWASP Secrets Management Cheat Sheet와 NIST SP 800-57은 key lifecycle과 운영 절차를 별도 관리 대상으로 본다. Sources: [OWASP Cryptographic Storage](https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html), [OWASP Secrets Management](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html), [NIST SP 800-57 Part 1 Rev. 5](https://csrc.nist.gov/pubs/sp/800/57/pt1/r5/final).
+
+P0 storage model:
+
+- `contact_type`: `email` or `sns`
+- `contact_label`: `email`, `x`, `instagram`, `discord`, etc.
+- `contact_masked`: UI 표시용. 예: `ab***@example.com`, `@ab***`
+- `contact_hash`: lowercased/normalized contact value의 keyed hash. 중복 확인과 검색용이며 원문 복구용이 아니다.
+- `contact_ciphertext`: AES-256-GCM 등 authenticated encryption으로 암호화한 값
+- `key_id`: 어떤 key로 암호화했는지
+- `consent_type`: `contact_for_followup`
+- `allowed_purposes`: `alpha_followup`, `error_notice`, `interview_request`
+- `consent_version`, `granted_at`, `withdrawn_at`
+- `retention_deadline`: alpha 종료 후 90일 또는 동의 철회 후 30일 중 더 이른 시점
+
+P0 key management:
+
+- P0에서는 개발자인 사용자가 key owner와 decrypt approver를 겸임한다.
+- key는 Git, 문서, 로그, DB dump에 저장하지 않는다.
+- 가능한 경우 cloud KMS, Vault, OS keychain 같은 key management service를 사용한다.
+- 로컬 alpha에서 임시 secret을 쓸 경우 `.env` 또는 secret store에 두되 repo에 커밋하지 않고, 접근 권한을 제한한다.
+- 복호화는 backend/service 경로에서만 수행하고, admin UI에는 기본적으로 `contact_masked`만 표시한다.
+- 실제 발송이 필요한 순간에만 복호화하고, `who`, `when`, `purpose`, `contact_id`, `request_id`를 audit log에 남긴다.
+- 대량 export나 CSV 다운로드는 P0에서 허용하지 않는다.
+- key rotation은 최소 alpha 종료 시점과 key compromise 의심 시 수행한다.
+- key compromise가 의심되면 새 key를 만들고 기존 contact data를 재암호화하거나 old key를 retired 상태로 관리한다.
+
+Productization separation:
+
+- Key custodian: KMS/Vault key 생성, rotation, disable 권한 담당
+- Decrypt approver: 대량 발송 또는 민감 접근 승인 담당
+- App operator: 발송 캠페인 실행 담당, key 원문 접근 불가
+- Auditor/security reviewer: decrypt audit과 목적 외 사용 감시 담당
+
+제품화 전에는 최소한 key custodian과 app operator를 분리해야 한다.
 
 ## P0 Job State Contract
 
@@ -683,15 +756,19 @@ P0 owner assignment: 별도 팀이 없으므로 개발자인 사용자가 deleti
 - P0 최소 엔진 경로가 mock-only로 후퇴하면 alpha self-voice success 판정이 흔들린다.
 - `worker` owned job state module 구현이 늦어지면 retry, partial artifact, failed_with_partial_artifacts, app-facing status가 흔들린다.
 - presigned upload/playback 계약 구현이 늦어지면 앱, BFF, API Gateway, storage, audit 구현이 동시에 막힌다.
-- retention/deletion owner가 없으면 30일 raw audio 삭제와 1년 non-audio dataset 분리가 운영 통제가 아니라 문서 선언에 그칠 수 있다.
+- P0에서 개발자가 deletion, policy, platform/storage owner를 겸임하므로 단일 owner 병목과 검토 부재 리스크가 있다.
 - failure tag가 사용자 증상과 기술 원인을 분리하지 못하면 다음 build decision에 필요한 metric 품질이 낮아진다.
 - app-only playback과 signed access를 느슨하게 구현하면 내부 alpha라도 권리/음성 악용 리스크가 커진다.
 
+## Deferred Productization Tasks
+
+- 수익화 또는 외부 beta 전 reference audio rights clearance 방식을 확정한다.
+- 수익화 또는 외부 beta 전 policy/legal, platform/storage, security/ops owner를 개발자 1인 책임에서 분리한다.
+- 제품화 전 contact encryption key custodian, decrypt approver, app operator, auditor/security reviewer 역할을 분리한다.
+
 ## Open Questions
 
-- 수익화 또는 외부 beta 전 reference audio rights clearance는 어떤 방식으로 확보할 것인가?
-- 추후 연락용 개인정보는 어떤 채널(SNS, 이메일 등)과 어떤 동의 문구로 수집할 것인가?
-- 연락처 암호화 key 관리와 복호화 권한은 P0에서 개발자가 담당하되, 제품화 전 어떻게 분리할 것인가?
+- 없음. 현재 기능 정의 기준으로 page-flow-planner 진행 가능.
 
 ## Recommended Next Skill
 
