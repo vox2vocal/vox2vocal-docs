@@ -1,6 +1,6 @@
 # Vox2Vocal MVP Feature Definition
 
-문서 버전: v0.1  
+문서 버전: v0.2
 작성일: 2026-06-13  
 기준 문서: `pm/vox2vocal-mvp-prd.md` v0.10, `pm/vox2vocal-mvp-prd-review.md`  
 적용 skill: `feature-definer`
@@ -10,6 +10,12 @@
 Vox2Vocal P0 내부 alpha는 음악 학습자가 Ken Kamikita - `Mist`의 `intro` section을 본인 목소리로 녹음해 업로드하고, 앱 안에서 본인 목소리처럼 들리는 보정/생성 preview를 들어보는 경험을 검증한다. P0의 1차 성공은 full-song 생성이나 완성도 높은 상업 품질이 아니라 section-limited self-voice preview가 실제 학습 동기와 품질 판단 근거를 만드는지 확인하는 것이다.
 
 P0는 `Mist` 전체 section map을 song package로 보관하되, 기본 target은 `intro`, timestamp는 등록된 reference audio asset 기준 `0:00-0:28`로 둔다. `intro`는 self-voice preview와 app flow 검증에는 적합하지만 나레이션 중심이므로 singing pitch matching 대표성은 약하다. 따라서 pitch feedback은 P0에서 제공하되, 후렴 수준의 singing validation은 Later 범위로 둔다.
+
+리뷰 보강 기준은 다음과 같다.
+
+- P0 confirmed: 기능 정의서에서 기본 구현 방향으로 확정한다.
+- P0 provisional default: P0 기본값으로 쓰되, 실제 reference asset 또는 alpha 운영 전 검수로 조정할 수 있다.
+- User decision required: 제품/정책 owner, 실제 권리 승인, 담당자 지정처럼 Codex가 임의로 확정하면 안 되는 항목이다.
 
 ## MVP Features
 
@@ -21,7 +27,8 @@ P0는 `Mist` 전체 section map을 song package로 보관하되, 기본 target�
   - 이메일, 비밀번호, 표시 이름, 약관 동의가 필요하다.
   - 비밀번호는 최소 8자 이상이어야 한다.
   - 인증되지 않은 사용자는 conversion job을 만들 수 없다.
-  - role은 최소 `learner`, `educator_or_expert`, `admin`, `engine_developer`, `product_qa`, `security_or_ops`를 구분한다.
+  - login role은 최소 `learner`, `educator_or_expert`, `admin`, `engine_developer`, `product_qa`, `security_or_ops`를 구분한다.
+  - `policy_or_rights_owner`, `platform_storage_owner`는 login role이 아니라 승인/운영 책임 owner metadata로 기록한다.
 - Permissions / roles:
   - `learner`: 본인 업로드, 본인 job, 본인 preview, 본인 pitch report, 삭제 요청 접근
   - `educator_or_expert`: 사용자가 동의한 job의 preview, pitch report, failure tags 검토
@@ -53,23 +60,26 @@ P0는 `Mist` 전체 section map을 song package로 보관하되, 기본 target�
 ### 2. 관리자 곡 패키지 및 권리 검증 게이트 (Admin Song Package And Rights Gate)
 
 - User action: 관리자가 내부 alpha용 `Mist` song package를 등록하고 publish 가능 상태로 만든다.
-- Product behavior: 시스템은 필수 metadata와 권리 상태가 모두 충족된 song package만 학습자에게 노출한다. 권리 불확실, 만료, complaint, provenance 누락이 있으면 `rights_blocked`로 전환한다.
+- Product behavior: 시스템은 필수 metadata와 권리 evidence가 모두 충족된 song package만 학습자에게 노출한다. 권리 불확실, 만료, complaint, provenance 누락이 있으면 `rights_blocked`로 전환한다.
 - Business rules:
   - P0 song package 필수값은 title, artist, language, BPM, key, reference audio, source/provenance, rights clearance status, usage status, retention period, deletion owner, full section map, default target section start/end다.
   - P0 target song은 Ken Kamikita - `Mist`로 제한한다.
-  - P0 default target section은 `intro`, timestamp는 reference audio asset 기준 `0:00-0:28`이다.
+  - P0 default target section은 `intro`, timestamp는 reference audio asset 기준 `0:00-0:28`로 확정한다. reference audio asset이 바뀌면 timestamp를 다시 검수한다.
   - YouTube, Spotify, lyrics provider 등 외부 provider는 P0에서 audio source로 쓰지 않는다.
   - reference audio는 앱 내부 분석/비교에만 사용하고 다운로드, 공유, 학습, remix, third-party voice cloning에 사용하지 않는다.
-  - 필수 권리 evidence가 없으면 learners에게 publish할 수 없다.
+  - 필수 권리 evidence가 없으면 정식 `published` 상태로 learners에게 노출할 수 없다. P0 내부 alpha에서만 예외적으로 `unlicensed_internal_alpha_risk` 상태를 사용할 수 있다.
+  - rights approval은 승인자, 승인 근거, 허용 용도, 금지 용도, 만료/재검토일, retention, deletion owner, complaint owner를 포함해야 한다.
 - Permissions / roles:
   - `admin`: song package 등록/수정 요청
-  - `policy_or_rights_owner`: rights clearance 승인/차단
-  - `platform_storage_owner`: retention/deletion owner 지정
+  - `policy_or_rights_owner`: rights clearance 승인/차단 책임자 metadata
+  - `platform_storage_owner`: retention/deletion owner metadata
   - `learner`: publish된 song package 조회만 가능
 - States:
   - `draft`
   - `metadata_incomplete`
   - `rights_pending`
+  - `approved_for_internal_analysis`
+  - `unlicensed_internal_alpha_risk`
   - `published`
   - `rights_blocked`
   - `under_review`
@@ -77,7 +87,7 @@ P0는 `Mist` 전체 section map을 song package로 보관하되, 기본 target�
 - Edge cases:
   - 등록된 reference audio asset과 section timestamp가 어긋나면 publish를 보류한다.
   - rights complaint가 들어오면 해당 song package와 관련 generated preview playback을 차단한다.
-  - BPM/key는 기본값으로 등록하되, P0 correction controls가 열리지 않았으면 학습자가 수정하지 못한다.
+  - BPM/key는 기본값으로 등록하고 P0에서는 admin-only로 수정한다. 학습자 BPM/key correction controls는 Later 범위다.
   - lyrics는 P0 선택값이며, lyrics sync가 없더라도 publish를 막지 않는다.
 - Dependencies:
   - Admin song package API 또는 seed/admin-only 등록 경로
@@ -103,8 +113,9 @@ P0는 `Mist` 전체 section map을 song package로 보관하되, 기본 target�
   - target section duration은 20-40초 권장이고 P0 `intro`는 28초다.
   - section length tolerance는 target duration 대비 `±5초` 또는 `±20%` 중 더 큰 값이다.
   - own voice consent와 generated preview consent는 필수다.
-  - expert review consent는 alpha 참여 조건으로 분리 동의한다.
+  - expert review consent는 P0 alpha job 제출 조건으로 분리 동의한다. 사용자가 거부하면 계정 사용은 가능하지만 P0 preview job은 시작하지 않는다.
   - candidate data consent는 opt-in이며 필수 동의와 번들링하지 않는다.
+  - consent는 type, version, scope, required/optional, timestamp, withdrawal status를 기록한다.
 - Permissions / roles:
   - `learner`: 본인 vocal upload와 consent 제출
   - `educator_or_expert`: 동의된 job만 검토
@@ -127,7 +138,7 @@ P0는 `Mist` 전체 section map을 song package로 보관하되, 기본 target�
 - Dependencies:
   - song package read model
   - upload initiation API
-  - object storage or presigned upload decision
+  - presigned object storage upload
   - consent storage
   - Safety Rights check
   - job creation API
@@ -242,8 +253,9 @@ P0는 `Mist` 전체 section map을 song package로 보관하되, 기본 target�
 - Edge cases:
   - preview generation이 실패하고 pitch report만 성공하면 `failed` 또는 `failed_with_partial_artifacts`로 표시한다.
   - preview가 너무 짧거나 section coverage가 부족하면 failure tag 후보 `too_short_or_incomplete`를 노출한다.
-  - playback URL은 short-lived signed access로만 제공한다.
+  - playback URL은 5분 TTL의 short-lived signed access로만 제공한다.
   - rights complaint 또는 deletion failure가 발생하면 playback을 차단한다.
+  - rights/deletion/consent 상태가 차단 상태이면 새 playback URL을 발급하지 않는다. 이미 발급된 URL은 TTL 만료까지의 잔여 위험을 줄이기 위해 P0 기본 TTL을 짧게 둔다.
 - Dependencies:
   - minimal self-voice preview engine path
   - canonical job state owner
@@ -259,12 +271,12 @@ P0는 `Mist` 전체 section map을 song package로 보관하되, 기본 target�
 ### 7. 표준 작업 상태 및 부분 산출물 처리 (Canonical Job State And Partial Artifact Handling)
 
 - User action: 사용자가 job 생성 후 처리 상태를 확인하거나, 실패/부분 성공 결과를 확인한다.
-- Product behavior: 시스템은 하나의 canonical job state owner가 stage result를 idempotent하게 반영하고, app-facing job status를 제공한다. BFF나 개별 worker는 최종 상태를 임의로 invent하지 않는다.
+- Product behavior: 시스템은 `worker` repo의 `conversion-job-state` bounded module을 P0 canonical job state owner로 두고, stage result를 idempotent하게 반영해 app-facing job status를 제공한다. BFF와 API Gateway는 최종 상태를 임의로 invent하지 않는다.
 - Business rules:
-  - P0는 신규 Conversion Job Orchestrator 서비스를 필수로 만들지 않고 기존 backend/worker bounded module로 시작할 수 있다.
+  - P0는 신규 Conversion Job Orchestrator 서비스를 필수로 만들지 않고 `worker` bounded module로 시작한다.
   - canonical state는 `created`, `queued`, `processing`, `preview_ready`, `completed`, `failed`, `failed_with_partial_artifacts`, `blocked`, `needs_review`, `deleted`를 지원한다.
   - output availability는 `preview_available`, `pitch_report_available`, `section_limited`, `rating_required`, `failure_tags_required`로 state와 분리 추적한다.
-  - engine worker는 job id, stage, status, artifact pointer, error reason, confidence summary, timing metadata를 emit한다.
+  - engine worker는 job id, stage, status, artifact refs, error reason, confidence summary, timing metadata를 emit한다.
   - duplicate stage result는 idempotent하게 처리한다.
 - Permissions / roles:
   - `learner`: 본인 job status와 result projection 조회
@@ -306,7 +318,7 @@ P0는 `Mist` 전체 section map을 song package로 보관하되, 기본 target�
 - Business rules:
   - primary rating question은 "이 preview가 내 목소리처럼 들린다"다.
   - 4점 이상만 primary self-voice metric success로 계산한다.
-  - 4점 미만은 `not_my_voice`, `not_song_like`, `pitch_wrong`, `timing_wrong`, `robotic_or_artifact`, `noise_or_clipping`, `too_short_or_incomplete`, `playback_issue`, `other` 중 최소 1개를 요구한다.
+  - 4점 미만 failure tag taxonomy v0.1은 `not_my_voice`, `not_song_like`, `pitch_wrong`, `timing_wrong`, `robotic_or_artifact`, `noise_or_clipping`, `too_short_or_incomplete`, `playback_issue`, `other`로 P0 confirmed한다. alpha 후 taxonomy version을 올려 조정할 수 있다.
   - `other`는 선택형 자유입력이며 개인정보/민감정보 유입 검토가 필요하다.
   - internal reviewer technical tags는 user perception tags와 분리한다.
   - 완료된 job은 preview, section label, pitch report, low-confidence sections, quality report를 보여준다.
@@ -350,6 +362,8 @@ P0는 `Mist` 전체 section map을 song package로 보관하되, 기본 target�
   - raw audio 없는 analysis/audit/metrics/failure data는 최대 1년 보관 후보로 둔다.
   - deletion evidence는 artifact id, data class, request source, retention deadline, deletion job id, status, timestamp, actor/service id를 포함하고 raw audio나 playable preview는 포함하지 않는다.
   - deletion 실패 시 `deletion_failed`로 표시하고 rights-sensitive playback을 차단한다.
+  - audit write가 실패하면 rights approval/publish, consent create/revoke, analysis/preview request, signed playback URL 발급, deletion request/job, rights complaint block, break-glass grant는 fail closed한다.
+  - raw/canonical audio에 대한 human break-glass 접근은 incident/ticket id, purpose, approver, second reviewer 또는 security owner, TTL, least-privilege grant, immutable audit, post-access review를 요구한다.
 - Permissions / roles:
   - `learner`: 본인 데이터 retention notice 확인과 삭제 요청
   - `platform_storage_owner`: deletion job과 storage policy 운영
@@ -368,7 +382,7 @@ P0는 `Mist` 전체 section map을 song package로 보관하되, 기본 target�
   - retention deadline 이후 24시간 내 deletion job이 실패하면 owner review를 생성한다.
   - rights complaint가 발생하면 삭제 완료 전이라도 playback을 먼저 차단한다.
   - candidate data consent가 없으면 해당 데이터를 future model-improvement 후보 dataset에 넣지 않는다.
-  - audit logging 실패 시 reference audio analysis 또는 preview generation을 진행하지 않는다.
+  - audit logging 실패 시 rights-sensitive operation을 진행하지 않는다.
 - Dependencies:
   - consent store
   - audit log store
@@ -381,6 +395,248 @@ P0는 `Mist` 전체 section map을 song package로 보관하되, 기본 target�
   - raw audio artifact의 100%가 30일 기본 retention과 deletion deadline을 가진다.
   - deletion deadline 이후 24시간 내 deletion job 실행 여부가 확인 가능하다.
   - raw audio가 1년 retained dataset에 포함되지 않는다.
+
+## P0 Review Remediation Decisions
+
+| Review Issue | Decision | Remaining User Decision |
+| --- | --- | --- |
+| P0 화면 범위와 내부 운영 범위가 섞임 | P0 화면은 learner core flow, 제한된 admin 화면, 별도 educator/expert review 화면으로 둔다. full admin console은 Out of Scope다. | 없음 |
+| `Mist intro` timestamp가 확정처럼 보임 | `0:00-0:28`은 사용자가 확인한 P0 target timestamp로 확정한다. 실제 등록 reference audio asset이 바뀌면 재검수한다. | 없음 |
+| Failure tag 목록이 질문과 충돌 | failure tag taxonomy v0.1은 P0 confirmed로 둔다. alpha 후 versioning으로 조정한다. | 없음 |
+| BPM/key correction 범위가 모호함 | P0 learner 화면에는 노출하지 않고 admin-only 수정으로 닫는다. learner correction controls는 Later다. | 예외적으로 learner에게 feature flag로 열지 여부 |
+| Job state owner 미확정 | P0 canonical owner는 `worker` repo의 `conversion-job-state` bounded module로 둔다. | 실제 구현 owner 팀/담당자 |
+| Upload/storage 계약 미확정 | P0는 BFF/API Gateway가 presigned URL을 발급하고 client가 object storage에 직접 업로드한다. BFF는 audio body를 proxy하지 않는다. Upload TTL은 15분, playback TTL은 5분으로 시작한다. | 없음 |
+| Mock/partial-real/real synthesis 기준 미확정 | mock은 UI/flow 검증 전용이며 alpha self-voice success로 계산하지 않는다. partial-real 이상을 alpha success 후보로 인정하고 real synthesis를 선호 경로로 둔다. | 없음 |
+| Admin/reviewer path 미확정 | 제한된 admin 화면과 별도 educator/expert review 화면을 P0에 포함한다. | 화면 상세 flow는 page-flow-planner에서 확정 |
+| 연락 목적 개인정보 처리 | `other` 자유입력은 feedback 텍스트로만 쓰고, SNS/메일 발송용 연락처는 별도 필드와 별도 동의로 수집한다. 연락처는 복호화 가능한 암호화 저장 대상으로 둔다. | 실제 발송 채널, 동의 문구, 보관 기간 |
+| owner 팀 부재 | P0에서는 개발자인 사용자가 deletion owner, policy owner, platform/storage owner를 겸임한다. | 제품화 전 역할 분리 시점 |
+
+## P0 Surface Boundary
+
+| Actor | P0 Surface | P0 Internal Path | Later | Out of Scope |
+| --- | --- | --- | --- | --- |
+| Learner | signup/login, song selection, consent, upload, processing status, preview playback, pitch feedback, rating/failure tags, deletion request | 없음 | progress history, multi-song practice, learner BPM/key correction | reference audio upload, export/share |
+| Admin | 제한된 admin 화면에서 song package 등록, section map 확인, rights status 표시, publish/block 처리 | seed/script fallback은 개발 초기 보조 수단으로만 사용 | full song catalog console, provider automation | general-purpose operator console |
+| Educator/Expert | 별도 review 화면에서 동의된 job의 preview, pitch report, failure tags, quality summary 검토 | raw audio 직접 접근 없이 reviewable result만 확인 | review queue 고도화, student progress dashboard | raw audio 기본 접근 |
+| Engine Developer | 없음 | stage result, artifact refs, technical tags, debug-only limited access | richer observability dashboard | unrestricted raw audio access |
+| Product/QA | 없음 | pseudonymous metrics, rating/failure taxonomy, alpha report | analytics dashboard | user-identifiable raw audio review |
+| Security/Ops | 없음 | audit, deletion evidence, rights complaint block, break-glass approval/review | incident console | unaudited data access |
+
+## Rights Evidence Checklist
+
+원칙적으로 P0에서 reference audio 또는 generated preview를 learner에게 노출하려면 다음 evidence가 모두 있어야 한다.
+
+사용자 결정: 현재 P0에서는 별도 음원 사용 허가나 권리 evidence가 없다. 또한 현재 목적은 수익 창출이 아니라 내부 alpha 검증이며, 수익화 시점에 정식 음원 사용 권리를 확보할 계획이다. 제품 정책상 이것은 rights clearance가 아니라 `unlicensed_internal_alpha_risk` 상태로 본다. 이 상태에서는 public launch, paid use, marketing, export/share, model training, provider audio ingestion, 외부 배포를 허용하지 않는다. 내부 alpha라도 법적 위험이 사라지는 것은 아니므로, 실제 reference audio 사용 범위는 개발자/정책 owner가 risk acceptance로 기록해야 한다.
+
+Policy note: non-commercial or research-oriented use does not automatically make copyrighted music use safe. Fair use is fact-specific, and provider terms can independently restrict analysis, caching, remixing, synchronization, or machine-learning use. P0 therefore treats unlicensed reference audio as a risk exception, not a cleared asset. Sources: [U.S. Copyright Office Fair Use Index](https://www.copyright.gov/fair-use/), [YouTube API Services Terms](https://developers.google.com/youtube/terms/api-services-terms-of-service), [Spotify Developer Policy](https://developer.spotify.com/policy).
+
+| Evidence | Required | Notes |
+| --- | --- | --- |
+| source/provenance | Yes | reference audio asset의 출처와 등록 경로 |
+| license/provider terms reference | Yes | 내부 분석과 앱 내 playback이 허용되는 근거 |
+| allowed uses | Yes | pitch extraction, quality comparison, internal review 등 |
+| prohibited uses | Yes | download, share, training, remix, third-party voice cloning 등 |
+| rights approver | Yes | 실제 담당자 또는 승인 팀 |
+| approval timestamp | Yes | 승인 시점 |
+| expiry/re-review date | Yes | 권리 만료 또는 재검토 기준 |
+| retention period | Yes | reference audio 보관 기준 |
+| deletion owner | Yes | 삭제 실행 책임 |
+| complaint owner | Yes | 권리 이슈 접수 후 차단/검토 책임 |
+| evidence storage location | Yes | 문서, DB record, ticket 등 실제 저장 위치 |
+
+Rights state transition:
+
+```text
+draft -> metadata_incomplete -> rights_pending -> approved_for_internal_analysis -> published
+draft -> unlicensed_internal_alpha_risk
+unlicensed_internal_alpha_risk -> rights_pending
+unlicensed_internal_alpha_risk -> rights_blocked
+draft -> rights_blocked
+rights_pending -> rights_blocked
+published -> under_review -> rights_blocked
+published -> retired
+```
+
+`published` 전에는 learner selection과 preview processing을 허용하지 않는 것이 원칙이다. 단, `unlicensed_internal_alpha_risk`는 개발자 owner가 명시적으로 risk acceptance를 기록한 제한된 내부 alpha에서만 사용할 수 있다. 이 예외는 수익화, 공개 beta, 외부 고객 제공, 음원/preview 다운로드, 공유, 학습 데이터 사용에는 적용되지 않는다.
+
+P0 risk acceptance record는 제한된 admin 화면의 rights/risk record에 저장한다. 해당 화면이 구현되기 전에는 PM 문서 또는 ticket에 임시로 남기고, admin 화면 구현 후 migration한다.
+
+## Consent Lifecycle
+
+| Consent Type | Required For P0 Job | Default | Withdrawal Behavior |
+| --- | --- | --- | --- |
+| `own_voice_processing` | Yes | unchecked | 철회 후 새 analysis/preview job 생성 차단 |
+| `generated_preview` | Yes | unchecked | 철회 후 새 preview 생성 차단, 기존 preview playback 차단 후보 |
+| `expert_review` | Yes for alpha job | unchecked | 철회 후 educator/expert 접근 차단 |
+| `candidate_data_opt_in` | No | unchecked | candidate dataset에서 제외하고 기존 candidate labels는 `withdrawn`으로 표시 |
+| `retention_notice_ack` | Yes | unchecked | 미동의 시 P0 job 생성 차단 |
+| `contact_for_followup` | No | unchecked | 철회 후 SNS/메일 발송 중지, 연락처 처리 목적 제한 |
+
+Consent record는 최소 `consent_type`, `version`, `scope`, `required`, `granted_at`, `withdrawn_at`, `source_job_id`, `policy_document_version`을 가진다. Candidate data opt-in 철회는 operational audit과 deletion evidence 보관 의무까지 자동 삭제한다는 뜻이 아니다. 다만 future model-improvement dataset에는 포함하지 않는다.
+
+SNS, 메일 등 추후 연락을 위한 개인정보는 failure tag의 `other` 자유입력에 받지 않는다. 연락처는 별도 필드와 별도 동의로 수집한다. 표시 화면에서는 마스킹하고, 발송 등 필요한 목적에서는 권한 있는 backend/service만 복호화할 수 있도록 암호화 저장한다. 복호화 접근은 audit 대상이다.
+
+## P0 Job State Contract
+
+- Owner: `worker` repo의 `conversion-job-state` bounded module
+- Read path: BFF는 API Gateway 또는 internal read model을 통해 app-facing projection만 읽는다.
+- Write path: upload/job 생성과 stage result events가 canonical job state module에 반영된다.
+- Idempotency key: upload session id 또는 job id + stage + attempt를 기준으로 중복 stage result를 무해하게 처리한다.
+- Timeout: 60분 초과 시 `failed` 또는 `failed_with_partial_artifacts` 후보로 전환한다.
+
+Canonical states:
+
+| State | Meaning | User-facing CTA |
+| --- | --- | --- |
+| `created` | job record 생성됨 | 업로드 계속하기 |
+| `queued` | engine 대기 중 | 상태 보기 |
+| `processing` | 하나 이상의 stage 처리 중 | 상태 보기 |
+| `preview_ready` | preview playback 가능, 일부 report는 진행 중일 수 있음 | preview 재생 |
+| `completed` | preview와 required report 준비됨 | preview 재생, 평가 제출 |
+| `failed` | alpha success가 될 수 없는 실패 | 재시도 또는 재업로드 |
+| `failed_with_partial_artifacts` | preview 또는 핵심 stage 실패, 일부 artifact 존재 | 가능한 결과 보기, 재시도 |
+| `blocked` | consent, rights, policy, audit 문제로 차단됨 | 차단 이유 확인 |
+| `needs_review` | confidence, rights, 품질 문제로 내부 검토 필요 | 대기 또는 문의 |
+| `deleted` | playable artifact 삭제됨 | 새 job 생성 |
+
+Output flags:
+
+- `preview_available`
+- `pitch_report_available`
+- `section_limited`
+- `rating_required`
+- `failure_tags_required`
+- `playback_blocked`
+- `deletion_pending`
+
+Allowed transition summary:
+
+```text
+created -> queued -> processing
+processing -> preview_ready -> completed
+processing -> failed
+processing -> failed_with_partial_artifacts
+processing -> needs_review
+created|queued|processing|preview_ready|completed -> blocked
+preview_ready|completed|failed_with_partial_artifacts -> deleted
+blocked -> under_review is represented by rights/job review metadata, not learner-facing state
+```
+
+## StageResult Schema
+
+Engine stages emit idempotent stage results with this minimum schema.
+
+| Field | Required | Notes |
+| --- | --- | --- |
+| `job_id` | Yes | canonical job id |
+| `stage` | Yes | `upload_validation`, `audio_ingest`, `section_validation`, `target_pitch_mapping`, `user_pitch_extraction`, `preview_synthesis`, `render`, `preview_evaluation`, `safety_rights`, `retention_deletion` |
+| `attempt` | Yes | integer, starts at 1 |
+| `status` | Yes | `queued`, `running`, `succeeded`, `failed`, `blocked`, `skipped` |
+| `artifact_refs` | Yes | zero or more artifact refs |
+| `error_code` | Conditional | required for failed/blocked |
+| `user_safe_reason` | Conditional | user-facing safe reason |
+| `confidence_summary` | No | pitch/confidence summary |
+| `timing_ms` | Yes | stage duration |
+| `engine_version` | Yes | engine or worker version |
+| `created_at` | Yes | event time |
+
+P0 error taxonomy starts with:
+
+- `unsupported_format`
+- `duration_exceeded`
+- `section_mismatch`
+- `no_voice_detected`
+- `low_confidence_pitch`
+- `target_note_conflict`
+- `synthesis_failed`
+- `render_failed`
+- `rights_blocked`
+- `consent_missing`
+- `audit_failed`
+- `playback_blocked`
+- `deletion_failed`
+- `timeout`
+
+## ArtifactRef And Storage Contract
+
+| Field | Required | Notes |
+| --- | --- | --- |
+| `artifact_id` | Yes | stable id |
+| `job_id` | Yes | source job |
+| `data_class` | Yes | `user_raw_audio`, `canonical_audio`, `reference_audio`, `generated_preview`, `pitch_report`, `quality_report`, `audit_log`, `deletion_evidence` |
+| `owner_user_id` | Conditional | user-owned artifacts only |
+| `storage_key` | Conditional | object storage artifact |
+| `mime_type` | Conditional | audio/json/report artifacts |
+| `duration_ms` | Conditional | audio artifacts |
+| `checksum_sha256` | Conditional | uploaded/generated files |
+| `retention_deadline` | Yes | data-class based |
+| `rights_state` | Yes | `allowed`, `blocked`, `under_review`, `expired`, `not_applicable` |
+| `playback_allowed` | Yes | false for raw/reference and blocked/deleted previews |
+| `created_at` | Yes | artifact creation time |
+
+Storage defaults:
+
+- User upload path: `audio-assets/{audio_asset_id}/original/{filename}`
+- Canonical audio path: `audio-assets/{audio_asset_id}/canonical/{artifact_id}.wav`
+- Generated preview path: `previews/{job_id}/{artifact_id}.wav`
+- JSON reports path: `jobs/{job_id}/reports/{artifact_id}.json`
+
+## Upload And Playback Contract
+
+- Upload mode: P0 confirmed presigned direct upload.
+- Flow: App -> BFF GraphQL -> API Gateway -> presigned PUT URL -> App uploads to object storage.
+- Upload TTL: 15 minutes by default. Expired URL requires a new upload session.
+- Accepted MIME: `audio/wav`, `audio/x-wav`, `audio/mpeg`, `audio/mp3`.
+- BFF and API Gateway must not log upload body, raw audio, signed URL secret, or playable preview URL.
+- Upload completion creates or links `audio_asset_id`, `source_object_key`, checksum when available, content type, duration candidate, owner user id, consent snapshot.
+- Playback mode: App -> BFF/API Gateway authorized playback request -> short-lived signed GET URL.
+- Playback TTL: 5 minutes by default.
+- Playback URL issuance requires authenticated user, job access, consent status, rights state, deletion state, and audit write success.
+- No new playback URL is issued if `playback_blocked=true`, `rights_state` is blocked/under_review/expired, deletion is running, or consent is withdrawn.
+- P0 does not require one-time playback URLs, but every issuance and playback attempt must create an audit/playback event.
+
+## Review Surface Contract
+
+- Educator/expert review는 별도 review 화면으로 제공한다.
+- Review 화면은 동의된 job의 generated preview, section label, pitch report, low-confidence ranges, failure tags, quality summary를 보여준다.
+- Review 화면은 raw audio 직접 playback/download를 기본 제공하지 않는다.
+- Internal reviewer technical tags는 같은 review 화면의 internal reviewer mode 또는 제한된 admin 화면에서 입력한다.
+- Engine developer가 추가하는 technical tags는 user perception tags와 분리 저장한다.
+
+## P0 Engine Mode Matrix
+
+| Mode | Description | Allowed Use | Counts For Alpha Self-voice Success |
+| --- | --- | --- | --- |
+| `mock` | static or fake preview, not generated from the submitted user voice | UI flow, loading/error/result layout test only | No |
+| `partial_real` | real upload, ingest, section validation, pitch extraction, and a generated preview derived from the submitted user voice, even if some downstream quality/evaluation stages are constrained | Internal alpha candidate if preview is app-playable and clearly labeled section-limited | Yes, if Product and Engine owner approve |
+| `real_synthesis` | full P0 section preview pipeline using real synthesis/render/evaluation stages | Preferred alpha validation path | Yes |
+
+P0 decision: `partial_real` preview도 alpha self-voice success 후보로 인정한다. 단, preview가 제출된 사용자 음성에서 파생되어야 하고, 앱에서 재생 가능해야 하며, section-limited output으로 명확히 표시되어야 한다. `real_synthesis`는 선호 경로다. Pitch-only success never counts as alpha self-voice success. If preview generation completely fails, the job is `failed` or `failed_with_partial_artifacts`.
+
+## Break-glass And Audit Fail-closed Contract
+
+Break-glass raw/canonical audio access is not a normal role permission. It requires:
+
+- incident or ticket id
+- purpose
+- approver
+- second reviewer or security owner
+- TTL
+- least-privilege artifact scope
+- immutable audit record
+- post-access review
+
+Audit write failure must fail closed for:
+
+- rights approval/publish/block
+- consent create/revoke
+- analysis/preview request
+- signed upload or playback URL issuance
+- deletion request/job
+- rights complaint block
+- break-glass grant
+
+P0 owner assignment: 별도 팀이 없으므로 개발자인 사용자가 deletion owner, policy owner, platform/storage owner를 겸임한다. 단, 모든 owner decision은 문서/DB/ticket 중 하나에 evidence로 남긴다. 제품화 또는 외부 beta 전에는 policy/legal, platform/storage, security/ops 책임을 분리해야 한다.
 
 ## Later Features
 
@@ -405,12 +661,17 @@ P0는 `Mist` 전체 section map을 song package로 보관하되, 기본 target�
 - 사용자 본인 음성이 아닌 voice model 선택
 - YouTube, Spotify, lyrics provider 등에서 audio를 download, rip, cache, analyze, train, remix하는 기능
 - 내부 alpha 결과물 다운로드, export, public share link, public posting, commercial use
+- 권리 확보 전 reference audio 또는 generated preview의 수익화, 공개 beta, 외부 고객 제공
 - 공개 출시, 결제, 구독, 크레딧, 마켓플레이스, 정산
 - DAW 수준 waveform editing, MIDI editor, multitrack mixing, advanced vocal editing
 - 실시간 변환, live lesson streaming
 - P0 learner-facing 자동 진성/비성/두성 판정
 - P0 lyric sync, 일본어 음절 정렬, 가사 기반 feedback
 - full-song preview 품질 보장
+- 모든 장르와 모든 언어의 완전 지원
+- production/commercial quality 보장
+- 고급 expression control
+- custom voice training
 - model training pipeline
 - 운영자 전체 관리 콘솔. 단, P0 song package 등록을 위한 최소 admin-only 등록 경로는 MVP에 포함한다.
 - 소셜 로그인, 비밀번호 재설정, 팀/협업 프로젝트
@@ -419,26 +680,18 @@ P0는 `Mist` 전체 section map을 song package로 보관하되, 기본 target�
 
 - `intro`는 나레이션 중심이라 self-voice preview 검증에는 좋지만 singing pitch accuracy와 후렴 고음 synthesis 대표성이 약하다.
 - reference audio rights clearance owner와 evidence 저장 위치가 확정되지 않으면 P0 launch gate를 통과할 수 없다.
-- P0 최소 엔진 경로가 mock, partial-real, real synthesis 중 무엇인지 확정되지 않으면 alpha success 판정이 흔들린다.
-- canonical job state owner가 불명확하면 retry, partial artifact, failed_with_partial_artifacts, app-facing status가 흔들린다.
-- upload/storage 계약이 늦게 정해지면 앱, BFF, worker, storage, audit 구현이 동시에 막힌다.
+- P0 최소 엔진 경로가 mock-only로 후퇴하면 alpha self-voice success 판정이 흔들린다.
+- `worker` owned job state module 구현이 늦어지면 retry, partial artifact, failed_with_partial_artifacts, app-facing status가 흔들린다.
+- presigned upload/playback 계약 구현이 늦어지면 앱, BFF, API Gateway, storage, audit 구현이 동시에 막힌다.
 - retention/deletion owner가 없으면 30일 raw audio 삭제와 1년 non-audio dataset 분리가 운영 통제가 아니라 문서 선언에 그칠 수 있다.
 - failure tag가 사용자 증상과 기술 원인을 분리하지 못하면 다음 build decision에 필요한 metric 품질이 낮아진다.
 - app-only playback과 signed access를 느슨하게 구현하면 내부 alpha라도 권리/음성 악용 리스크가 커진다.
 
 ## Open Questions
 
-- `Mist` section map과 `intro = 0:00-0:28`은 실제 등록 reference audio asset 기준으로 검수 완료할 것인가, 조정 가능성을 남길 것인가?
-- reference audio rights clearance 최종 승인자는 누구이며, 승인 evidence는 어느 저장소/문서/record에 남길 것인가?
-- P0 canonical job state owner는 worker bounded module, backend service module, API Gateway 중 어디로 확정할 것인가?
-- P0 최소 엔진 경로는 partial-real pipeline으로 시작할 것인가, real synthesis까지 요구할 것인가?
-- upload는 앱에서 BFF로 직접 전송할 것인가, presigned URL/object storage 직접 업로드로 갈 것인가?
-- internal reviewer가 기술 tag를 입력할 최소 surface는 admin-only 화면인가, DB/운영 도구 기반인가?
-- 4점 미만 failure tag 목록은 현재 목록으로 확정할 것인가, alpha 전 pilot에서 한 번 줄일 것인가?
-- `other` 자유입력에 개인정보/민감정보가 들어올 경우 review와 redaction 기준은 어떻게 둘 것인가?
-- deletion owner, policy owner, platform/storage owner를 실제 담당자 또는 팀으로 어떻게 지정할 것인가?
-- 교육자/전문가 view는 P0에서 learner result 화면 재사용으로 시작할 것인가, 별도 review 화면을 만들 것인가?
-- P0에서 BPM/key correction controls는 관리자만 수정 가능한가, 학습자에게도 열 것인가?
+- 수익화 또는 외부 beta 전 reference audio rights clearance는 어떤 방식으로 확보할 것인가?
+- 추후 연락용 개인정보는 어떤 채널(SNS, 이메일 등)과 어떤 동의 문구로 수집할 것인가?
+- 연락처 암호화 key 관리와 복호화 권한은 P0에서 개발자가 담당하되, 제품화 전 어떻게 분리할 것인가?
 
 ## Recommended Next Skill
 
