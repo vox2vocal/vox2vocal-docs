@@ -1,13 +1,13 @@
 # Vox2Vocal MVP PRD 리뷰
 
-리뷰 대상 문서: `pm/vox2vocal-mvp-prd.md` v0.10  
+리뷰 대상 문서: `pm/vox2vocal-mvp-prd.md` v0.11
 리뷰 기준: `prd-reviewer` skill  
 리뷰일: 2026-06-13
 
 ## 판정
 
-- 상태: P0 내부 alpha는 조건부 Go, 전체 곡/productized build는 No-go.
-- 한 줄 판단: PRD가 `Mist`를 section map 기반으로 재정의하고 `intro`를 `0:00-0:28` P0 target으로 고정한 것은 반영됐다. 다만 Intro는 나레이션 중심이라 self-voice preview 검증에는 좋지만 singing pitch matching 대표성은 약하며, reference audio 권리 승인, P0 job state owner, upload/storage 계약, deletion owner, 최소 엔진 경로가 확정되기 전에는 build start가 여전히 위험하다.
+- 상태: P0 내부 운영은 조건부 Go, 전체 곡/productized build는 No-go.
+- 한 줄 판단: PRD가 `Mist`를 section map 기반으로 재정의하고 `intro`를 `0:00-0:28` P0 target으로 고정한 것은 반영됐다. 다만 Intro는 나레이션 중심이라 self-voice preview 검증에는 좋지만 singing pitch matching 대표성은 약하며, reference audio 권리 승인, P0 job state owner, recorder/upload storage 계약, deletion owner, 최소 엔진 경로가 확정되기 전에는 build start가 여전히 위험하다.
 
 ## 핵심 이슈
 
@@ -32,7 +32,7 @@
 - 심각도: High.
 
 - 이슈: 최소 엔진 경로가 아직 확정되지 않았다.
-- 중요한 이유: PRD는 self-voice section preview를 P0 핵심 가치로 둔다. mock-only, partial-real pipeline, real synthesis 중 무엇으로 alpha를 판단할지 정하지 않으면 구현 ticket과 alpha 성공 기준이 갈라진다.
+- 중요한 이유: PRD는 self-voice section preview를 P0 핵심 가치로 둔다. mock-only, partial-real pipeline, real synthesis 중 무엇으로 P0 성공을 판단할지 정하지 않으면 구현 ticket과 P0 성공 기준이 갈라진다.
 - 심각도: High.
 
 - 이슈: Retention/deletion owner가 아직 없다.
@@ -77,16 +77,16 @@
 - 왜 막히는가: final status와 partial artifact 처리의 source of truth가 필요하다.
 
 - 질문: P0 최소 엔진 경로는 mock, partial-real pipeline, real synthesis 중 무엇인가?
-- 왜 막히는가: self-voice preview가 핵심 가치라 mock-only로는 alpha 성공을 판정하기 어렵다.
+- 왜 막히는가: self-voice preview가 핵심 가치라 mock-only로는 P0 성공을 판정하기 어렵다.
 
 - 질문: 4점 미만 failure tag의 최종 목록을 그대로 확정할 것인가?
-- 왜 막히는가: metric taxonomy가 바뀌면 alpha 결과 비교가 어려워진다.
+- 왜 막히는가: metric taxonomy가 바뀌면 P0 결과 비교가 어려워진다.
 
 - 질문: raw audio 삭제 evidence는 어떤 로그/리포트로 남길 것인가?
 - 왜 막히는가: retention policy가 실제 운영 통제인지 확인할 수 있어야 한다.
 
 ## 진행/중단 판단
 
-- 권고: P0 alpha build는 조건부 Go.
-- 진행 조건: reference asset 기준 section map 검수, `intro` 기준 metric 해석 확정, rights clearance owner/evidence 확정, P0 job state owner 확정, 최소 엔진 경로 확정, failure tag UI 확정, upload/storage 계약 확정, retention/deletion owner 확정.
+- 권고: P0 내부 운영 build는 조건부 Go.
+- 진행 조건: reference asset 기준 section map 검수, `intro` 기준 metric 해석 확정, rights clearance owner/evidence 확정, P0 job state owner 확정, 최소 엔진 경로 확정, failure tag UI 확정, recorder/upload storage 계약 확정, retention/deletion owner 확정.
 - No-go 조건: 권리 검증 없는 reference audio 사용, full-song, lyric sync, vocal-mode 자동 분석, provider audio ingestion, 신규 orchestrator 서비스가 P0 필수 범위로 다시 들어오는 경우.
