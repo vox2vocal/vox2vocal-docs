@@ -228,10 +228,22 @@ npm.cmd test -- --runInBand
 
 Vox2Vocal workspace는 monorepo가 아니라 MSA 구조다. 각 하위 폴더는 독립 Git repository이므로 변경한 repo 안에서 개별 commit/push 한다.
 
+상세 Git 정책은 `vox2vocal-docs/workspace/git-policy.md`를 따른다. 모든 repo에는 동일한 `scripts/validate-git-policy.sh`, `.githooks/commit-msg`, `.githooks/pre-push`, `.github/workflows/git-policy.yml`을 둔다.
+
+커밋 author와 committer는 항상 `gitbyul <gitbyul@gmail.com>`이어야 한다. 다른 개인 계정, bot 계정, 로컬 머신 이메일, GitHub noreply 이메일은 허용하지 않는다.
+
+각 repo에서 다음 명령으로 local Git identity와 hook 경로를 고정한다.
+
+```bash
+scripts/install-git-policy-hooks.sh
+```
+
 커밋 메시지는 Conventional Commits 형식을 사용한다.
 
 ```txt
 type(scope): 한글 제목
+
+- 한글 bullet body
 ```
 
 - `type`은 영어 소문자로 작성한다.
@@ -240,6 +252,7 @@ type(scope): 한글 제목
 - 제목만 작성하지 않고, 커밋 본문에 변경 내용을 한글 bullet로 작성한다.
 - 제목과 본문 사이에는 빈 줄을 한 줄만 둔다.
 - 본문 bullet 사이에는 빈 줄을 넣지 않는다.
+- 본문에도 한글이 포함되어야 한다.
 - 커밋 메시지 전체에 불필요한 빈 줄을 여러 번 넣지 않는다.
 - 관련 없는 여러 repo의 변경을 하나의 커밋으로 묶지 않는다.
 - 변경 단위가 다르면 같은 repo 안에서도 작업 단위별로 커밋을 나눈다.
@@ -309,6 +322,14 @@ push 원칙:
 - `engine-voice-analysis` 변경은 `engine-voice-analysis` repo에서 commit/push 한다.
 - `engine-voice-pitch` 변경은 `engine-voice-pitch` repo에서 commit/push 한다.
 - 루트 파일은 현재 독립 Git repo에 속하지 않을 수 있으므로, 커밋 가능 여부를 먼저 확인한다.
+
+강제 장치:
+
+- local `commit-msg` hook은 Git identity와 커밋 메시지를 검사한다.
+- local `pre-push` hook은 push 대상 커밋의 author, committer, 메시지를 검사한다.
+- GitHub Actions `git-policy` workflow는 PR 신규 커밋과 `workflow_dispatch` 대상 커밋을 검사한다.
+- GitHub `main` ruleset에서는 `git-policy` required check, PR 필수, force push 금지, 삭제 금지를 적용한다.
+- 현재 rewritten history는 unsigned 상태이므로 signed commit required ruleset은 signing key 구성 이후 새 커밋부터 적용한다.
 ## Git Safe Directory Rule
 
 Windows 환경에서 Codex 또는 다른 계정이 생성한 repo를 현재 사용자 `CMS`가 다룰 때 `dubious ownership` 오류가 발생할 수 있다.
