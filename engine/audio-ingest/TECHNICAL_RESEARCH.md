@@ -72,6 +72,17 @@ redis client
 - object storage는 MinIO/S3-compatible storage를 사용하되, Python client는 AWS S3 이식성이 좋은 `boto3`를 사용한다.
 - 큐/이벤트는 NATS JetStream으로 확정했으므로 Celery/RabbitMQ/Redis client는 MVP 필수가 아니다.
 
+### 2.2 2026-06-14 구현 반영
+
+현재 `engine-audio-ingest` repo에는 다음 구현이 반영되어 있다.
+
+- `ffprobe` wrapper: metadata JSON parsing, audio stream 선택, duration/sample rate/channels/format/codec 추출
+- `ffmpeg` wrapper: 입력 오디오를 48kHz mono WAV로 변환, timeout과 실패 error code 매핑, output 재검증
+- Docker image: `ffmpeg`, `ffprobe`, `libsndfile1` 포함
+- 테스트: fixture 기반 MP3 -> canonical WAV 변환 smoke test 포함
+
+따라서 기술 리서치의 다음 구현 초점은 FFmpeg 도입 여부가 아니라, manifest schema와 ingest processor orchestration이다.
+
 ## 3. 엔진 책임 범위
 
 ### 3.1 In Scope

@@ -20,6 +20,18 @@
 - 테스트 및 검증 기준
 - 사용자가 결정해야 하는 정책성 항목
 
+### 1.1 2026-06-14 구현 반영
+
+이 문서는 개발 전 준비 문서이므로 초기 설계 판단은 보존한다. 다만 현재 구현 기준으로 확정 또는 완료된 항목은 다음과 같다.
+
+- 런타임은 `python:3.12-slim` 기반 Docker image로 유지한다.
+- `ffmpeg`와 `ffprobe`는 host가 아니라 `engine-audio-ingest` container image 내부에 설치한다.
+- canonical output 기본값은 48kHz mono WAV로 확정한다.
+- 큐/이벤트는 NATS JetStream으로 확정한다.
+- MVP storage adapter는 local filesystem으로 먼저 구현했다.
+- `ffprobe` metadata wrapper와 `ffmpeg` canonical convert wrapper는 구현 및 테스트 완료 상태다.
+- 현재 다음 구현 작업은 manifest JSON 생성이다.
+
 ## 2. 개발 전 핵심 결론
 
 개발을 바로 시작하기 전에 가장 먼저 필요한 것은 코드가 아니라 **계약과 경계 확정**이다.
@@ -717,13 +729,13 @@ ingest 실패 시 사용자에게 즉시 노출할 error message와 내부 debug
 
 ## 15. 결정 후 바로 진행할 수 있는 작업
 
-위 질문에 대한 결정이 끝나면 다음 작업을 바로 진행할 수 있다.
+현재 구현 상태 기준으로 다음 작업을 바로 진행할 수 있다.
 
-1. `engine-audio-ingest` Python 프로젝트 scaffold
-2. `.env.example` 작성
-3. `pyproject.toml` 작성
-4. FFmpeg/ffprobe wrapper 구현
-5. local ingest CLI 구현
-6. manifest schema 초안 작성
-7. fixture 기반 테스트 추가
-8. README에 로컬 실행 절차 작성
+1. manifest schema와 저장 모델 작성
+2. source metadata와 canonical metadata를 포함한 manifest JSON 생성
+3. manifest 저장 실패를 `STORAGE_WRITE_FAILED`로 매핑
+4. requested payload 수신 후 ffprobe, ffmpeg, manifest 생성을 연결
+5. 성공 시 `audio.ingest.completed` 발행
+6. 실패 시 `audio.ingest.failed` 발행
+7. Kubernetes NATS 연결과 durable consumer 수신 검증
+8. upload completion boundary와 연결한 E2E 검증

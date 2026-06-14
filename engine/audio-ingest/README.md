@@ -36,6 +36,35 @@ Audio Ingest Engine은 사용자가 업로드한 음성, 노래, 가이드 멜�
 - 무음 구간 탐지
 - 발화 구간별 타임스탬프 생성
 
+## 현재 구현 상태 (2026-06-14)
+
+`engine-audio-ingest` repo 기준 현재 완료된 구현은 다음이다.
+
+- FastAPI app factory와 `GET /health`
+- Docker image runtime에 `ffmpeg`, `ffprobe`, `libsndfile1` 포함
+- NATS JetStream stream 확인/생성 골격
+- `audio.ingest.requested` durable consumer 골격
+- requested/completed/failed 이벤트 payload 모델
+- `audio.ingest.requested` payload validation
+- local filesystem storage adapter
+- `ffprobe` metadata wrapper
+- `ffmpeg` canonical WAV 변환 wrapper
+
+검증된 상태:
+
+- unit/integration test: `51 passed`
+- Ruff: `All checks passed`
+- Docker image: `vox2vocal/engine-audio-ingest:local`
+- Minikube deployment: `engine-audio-ingest` `1/1 Running`
+- pod 내부 `convert_to_canonical_wav` import와 `ffmpeg` 실행 확인
+
+아직 남은 구현:
+
+- manifest JSON 생성
+- requested event를 ffprobe/ffmpeg/manifest 처리 흐름에 연결
+- completed/failed 이벤트 발행
+- Kubernetes/NATS 통합 메시지 처리 검증
+
 ## 연결 엔진
 
 - 다음 단계: `engine-voice-analysis`
