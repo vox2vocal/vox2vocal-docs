@@ -53,12 +53,15 @@ C:\Program Files\Kubernetes\Minikube
 
 전체 서비스 연결을 확인할 때는 minikube 기반 구동을 기본으로 한다.
 
-Kubernetes 구성에는 애플리케이션 서비스뿐 아니라 PostgreSQL과 Redis도 포함된다.
+Kubernetes 구성에는 애플리케이션 서비스뿐 아니라 PostgreSQL, Redis, MinIO, NATS JetStream, logging stack, audio ingest engine도 포함된다.
 
 | 리소스 | 이미지 | 역할 |
 | --- | --- | --- |
 | `postgres` | `postgres:17.10-alpine` | user-service 데이터베이스 |
 | `redis` | `redis:7.2.14-alpine3.21` | worker/BullMQ queue |
+| `minio` | `quay.io/minio/minio:latest` | local S3-compatible object storage |
+| `nats` | `nats:2.11.15-alpine3.22` | audio ingest event stream |
+| `engine-audio-ingest` | `vox2vocal/engine-audio-ingest:local` | source audio probe/convert engine |
 
 ### 1. Docker Desktop 실행
 
@@ -95,13 +98,17 @@ Windows에서 관리자 권한을 요구할 수 있다. 권한 요청이 나오�
 
 workspace 루트에서 실행한다.
 
-Windows Git Bash에서는 Docker Desktop daemon과 minikube 내부 Docker daemon이 서로 다를 수 있다. minikube가 바로 사용할 이미지를 만들기 위해 `minikube image build`를 기본으로 사용한다.
+현재 workspace의 service repo 이름은 `vox2vocal-*` 형식이다. app service 이미지는 infra helper를 우선 사용한다.
 
 ```bash
-minikube image build -t vox2vocal/bff-server:local ./bff-server
-minikube image build -t vox2vocal/api-gateway:local ./api-gateway
-minikube image build -t vox2vocal/user-service:local ./user-service
-minikube image build -t vox2vocal/worker:local ./worker
+./vox2vocal-infra/scripts/build-local-app-images.sh
+```
+
+engine image는 FFprobe/FFmpeg 구현 변경 이후 빌드한다.
+
+```bash
+docker build --network=host -t vox2vocal/engine-audio-ingest:local ./engine-audio-ingest
+minikube image load vox2vocal/engine-audio-ingest:local
 ```
 
 빌드된 이미지 확인:
@@ -110,17 +117,17 @@ minikube image build -t vox2vocal/worker:local ./worker
 minikube image ls | grep vox2vocal
 ```
 
-대안으로 minikube Docker daemon을 현재 Git Bash 세션에 적용한 뒤 `docker build`를 사용할 수도 있다.
+대안으로 `minikube image build`를 직접 사용할 수도 있다.
 
 ```bash
-eval $(minikube docker-env)
-docker build -t vox2vocal/bff-server:local ./bff-server
-docker build -t vox2vocal/api-gateway:local ./api-gateway
-docker build -t vox2vocal/user-service:local ./user-service
-docker build -t vox2vocal/worker:local ./worker
+minikube image build -t vox2vocal/bff-server:local ./vox2vocal-bff-server
+minikube image build -t vox2vocal/api-gateway:local ./vox2vocal-api-gateway
+minikube image build -t vox2vocal/user-service:local ./vox2vocal-user-service
+minikube image build -t vox2vocal/worker:local ./vox2vocal-worker
+minikube image build -t vox2vocal/engine-audio-ingest:local ./engine-audio-ingest
 ```
 
-이 방식은 현재 터미널 세션에만 적용된다. 새 Git Bash 창을 열면 다시 `eval $(minikube docker-env)`를 실행해야 한다.
+Docker default bridge network에서 npm/PyPI registry 접근이 timeout되면 `docker build --network=host` 방식으로 재시도한다.
 
 ### 5. Kubernetes 리소스 적용
 
@@ -344,22 +351,22 @@ Docker Desktop 실행
 개발 중 특정 서비스만 빠르게 확인할 때는 각 repo에서 직접 실행할 수 있다.
 
 ```bash
-cd bff-server
+cd vox2vocal-bff-server
 npm.cmd run start:dev
 ```
 
 ```bash
-cd api-gateway
+cd vox2vocal-api-gateway
 npm.cmd run start:dev
 ```
 
 ```bash
-cd user-service
+cd vox2vocal-user-service
 npm.cmd run start:dev
 ```
 
 ```bash
-cd worker
+cd vox2vocal-worker
 npm.cmd run start:dev
 ```
 
@@ -375,6 +382,10 @@ npm.cmd run start:dev
 | `user-service` | HTTP health | `3002`  |
 | `user-service` | gRPC        | `50051` |
 | `worker`       | HTTP health | `3003`  |
+| `engine-audio-ingest` | HTTP health | `8080` |
+| `minio` | S3 API | `9000` |
+| `minio` | Console | `9001` |
+| `nats` | Client | `4222` |
 
 ## 검증 명령
 
@@ -388,7 +399,7 @@ npm.cmd run verify
 `user-service`는 Prisma client 생성이 필요할 수 있다.
 
 ```bash
-cd user-service
+cd vox2vocal-user-service
 npm.cmd run prisma:generate
 ```
 
@@ -415,6 +426,7 @@ kubectl logs -n vox2vocal deploy/bff-server
 kubectl logs -n vox2vocal deploy/api-gateway
 kubectl logs -n vox2vocal deploy/user-service
 kubectl logs -n vox2vocal deploy/worker
+kubectl logs -n vox2vocal deploy/engine-audio-ingest
 kubectl logs -n vox2vocal statefulset/postgres
 kubectl logs -n vox2vocal deploy/redis
 ```
@@ -441,11 +453,10 @@ minikube image ls | grep vox2vocal
 해결:
 
 ```bash
-minikube image build -t vox2vocal/bff-server:local ./bff-server
-minikube image build -t vox2vocal/api-gateway:local ./api-gateway
-minikube image build -t vox2vocal/user-service:local ./user-service
-minikube image build -t vox2vocal/worker:local ./worker
-kubectl rollout restart deployment -n vox2vocal bff-server api-gateway user-service worker
+./vox2vocal-infra/scripts/build-local-app-images.sh
+docker build --network=host -t vox2vocal/engine-audio-ingest:local ./engine-audio-ingest
+minikube image load vox2vocal/engine-audio-ingest:local
+kubectl rollout restart deployment -n vox2vocal bff-server api-gateway user-service worker engine-audio-ingest
 ```
 
 ### Cannot find module '/app/dist/main.js'
@@ -480,7 +491,7 @@ The "@as-integrations/express5" package is missing.
 설치:
 
 ```bash
-cd bff-server
+cd vox2vocal-bff-server
 npm.cmd install @as-integrations/express5
 ```
 
@@ -501,7 +512,7 @@ COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 수정 후 이미지를 다시 빌드하고 Deployment를 재시작한다.
 
 ```bash
-minikube image build -t vox2vocal/user-service:local ./user-service
+minikube image build -t vox2vocal/user-service:local ./vox2vocal-user-service
 kubectl rollout restart deployment -n vox2vocal user-service
 ```
 

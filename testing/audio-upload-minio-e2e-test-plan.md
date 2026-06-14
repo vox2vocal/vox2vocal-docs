@@ -57,12 +57,13 @@ engine-audio-ingest/samples/audio/mp3-input.mp3
 
 workspace root에서 서비스 이미지를 빌드한다.
 
+현재 개발 환경에서는 app 서비스 이미지를 infra helper로 빌드하고, engine 이미지는 engine 구현 변경 이후 별도로 빌드한다.
+
 ```bash
-minikube image build -t vox2vocal/bff-server:local ./vox2vocal-bff-server
-minikube image build -t vox2vocal/api-gateway:local ./vox2vocal-api-gateway
-minikube image build -t vox2vocal/user-service:local ./vox2vocal-user-service
-minikube image build -t vox2vocal/worker:local ./vox2vocal-worker
-minikube image build -t vox2vocal/engine-audio-ingest:local ./engine-audio-ingest
+./vox2vocal-infra/scripts/build-local-app-images.sh
+
+docker build --network=host -t vox2vocal/engine-audio-ingest:local ./engine-audio-ingest
+minikube image load vox2vocal/engine-audio-ingest:local
 ```
 
 Kubernetes manifest를 적용한다.
@@ -197,12 +198,14 @@ createAudioUploadSession
 
 ## 9. Engine 완료까지 확장하는 E2E
 
-진짜 ingest 완료 E2E는 다음 engine task가 끝난 뒤 가능하다.
+진짜 ingest 완료 E2E는 engine Task 8과 Task 9가 끝난 뒤 가능하다.
 
-- Task 6: FFprobe Wrapper
-- Task 7: FFmpeg Canonical Convert Wrapper
-- Task 8: Manifest 생성
-- Task 9: Ingest Processor 연결
+| Task | 상태 | E2E 영향 |
+| --- | --- | --- |
+| Task 6: FFprobe Wrapper | 완료 | 입력 metadata 추출 가능 |
+| Task 7: FFmpeg Canonical Convert Wrapper | 완료 | 48kHz mono WAV 생성 가능 |
+| Task 8: Manifest 생성 | 미구현 | 후속 엔진 입력 계약이 아직 생성되지 않음 |
+| Task 9: Ingest Processor 연결 | 미구현 | requested 이벤트를 실제 처리 흐름에 연결하지 못함 |
 
 확장 후 최종 E2E 흐름:
 
@@ -245,9 +248,9 @@ ingest E2E 완료 기준:
 
 ## 11. 다음 개발 태스크
 
-현재 `engine-audio-ingest/TASKS.md` 기준 다음 engine task는 Task 6 `FFprobe Wrapper`다.
+현재 `engine-audio-ingest/TASKS.md` 기준 다음 engine task는 Task 8 `Manifest 생성`이다.
 
-다만 upload E2E를 ingest 요청까지 연결하려면 engine Task 6 전에 cross-service task가 하나 더 필요하다.
+다만 upload E2E를 ingest 요청까지 연결하려면 cross-service upload completion boundary가 필요하다.
 
 ```txt
 Upload completion boundary
@@ -260,5 +263,5 @@ Upload completion boundary
 따라서 진행 순서는 목적에 따라 나눈다.
 
 - 업로드 E2E를 먼저 닫는다: upload session, PUT, MinIO object 확인 자동화
-- ingest pipeline을 먼저 전진한다: engine Task 6 FFprobe Wrapper 구현
-- 전체 E2E를 목표로 한다: completeAudioUpload boundary를 추가한 뒤 Task 6부터 Task 9까지 진행
+- ingest pipeline을 먼저 전진한다: engine Task 8 Manifest 생성, Task 9 Ingest Processor 연결
+- 전체 E2E를 목표로 한다: completeAudioUpload boundary를 추가한 뒤 Task 8, Task 9, Kubernetes/NATS 통합 검증까지 진행
