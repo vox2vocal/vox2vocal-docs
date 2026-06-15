@@ -4,6 +4,24 @@
 리뷰 기준: `prd-reviewer` skill  
 리뷰일: 2026-06-13
 
+## 현재 반영 상태
+
+업데이트일: 2026-06-15
+
+- `Mist intro`는 사용자가 확인한 P0 target section으로 확정했다. 실제 등록 reference asset이 바뀌면 다시 검수한다.
+- `intro`는 self-voice preview와 app flow 검증의 1차 대상이며, singing pitch 대표성은 보조 지표로 낮춘다.
+- P0 최소 엔진 경로는 `partial_real` lineaged preview로 확정했다. `mock`과 pitch-only 결과는 P0 self-voice success로 계산하지 않는다.
+- P0 canonical job state owner는 `worker` repo의 `conversion-job-state` bounded module로 확정했다.
+- Recorder/fallback upload는 presigned object storage 경로와 `completeAudioUpload` commit boundary로 확정했다.
+- P0 object storage는 MinIO이며 S3-compatible contract를 유지한다.
+- NATS JetStream은 P0 engine pipeline 필수 런타임 의존성으로 확정했다.
+- `preview_played=true`는 서버가 80% unique timeline coverage로 계산한다. `Mist intro` 28초 기준 최소 22.4초의 distinct playback이 필요하다.
+- Rating은 `preview_played=true` 이후에만 가능하고, 4점 미만은 failure tag가 필수다. 재생 문제는 failure tag가 아니라 `playback_problem_reported` 이벤트로 분리한다.
+- Contact follow-up은 gate와 data model만 남기고 기본 hidden/disabled로 둔다. 실제 연락처 UI, 저장, 발송은 수익화 또는 외부 beta 전 재결정한다.
+- 남은 주요 blocker는 실제 rights/risk acceptance record 작성, 권리 evidence 없는 `Mist`의 내부 운영 종료 전 재판정, second reviewer 확보 여부, 외부 beta/수익화 전 정식 음원 권리 확보 방식이다.
+
+아래 리뷰 원문은 2026-06-13 기준 진단이며, 현재 구현/기획 판단에는 위 반영 상태를 우선 적용한다.
+
 ## 판정
 
 - 상태: P0 내부 운영은 조건부 Go, 전체 곡/productized build는 No-go.
