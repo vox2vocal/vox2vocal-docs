@@ -22,9 +22,9 @@ P0 기술 목표는 상업 품질의 full-song generation이 아니라, 다음 �
 - engine stage는 표준 StageResult로 정규화한다.
 - preview는 app-only signed playback으로만 제공한다.
 - rights, consent, audit, deletion 상태가 차단되면 processing 또는 playback을 fail closed한다.
-- contact follow-up은 P0 포함 기능이지만 core preview/rating flow의 blocking dependency가 아니다.
+- contact follow-up은 P0에서 gate만 정의하고 기본 disabled로 둔다. core preview/rating flow의 blocking dependency가 아니다.
 
-현행 엔진 구성은 최종 목표를 위해 유지한다. 다만 P0 구현 깊이는 `audio-ingest`, `voice-pitch`, `melody-mapping`, `singing-synthesis`, `vocoder-render`, `mix-master`, `evaluation`, `safety-rights`의 최소 end-to-end path를 우선하고, `voice-analysis`, `phoneme-alignment`, `rhythm-timing`, `expression`, `voice-conversion`은 현행 엔진 문서상 구성은 유지하되 P0 필수 경로에서는 제한적으로 사용하거나 Later 깊이로 둔다.
+현행 엔진 구성은 최종 목표를 위해 유지한다. 다만 P0 metric-eligible preview의 첫 경로는 `partial_real` lineaged preview로 둔다. 즉 `audio-ingest`, section validation, `voice-pitch`, target pitch mapping, constrained preview generation/render, lightweight `evaluation`, `safety-rights`를 우선하고, full `singing-synthesis`, full `vocoder-render`, full `mix-master`, `voice-analysis`, `phoneme-alignment`, `rhythm-timing`, `expression`, `voice-conversion`은 필요 시 제한적으로 사용하거나 Later/shadow path로 둔다.
 
 ## Product Requirement Traceability
 
@@ -39,13 +39,13 @@ P0 기술 목표는 상업 품질의 full-song generation이 아니라, 다음 �
 | Fallback upload | Presigned upload session and object storage path | App, BFF/API Gateway, object storage | `.wav`/`.mp3`, TTL, size guard, idempotency |
 | Audio ingest and section validation | Canonical audio conversion and validation StageResult | engine-audio-ingest, worker, storage | canonical artifact, duration, loudness, silence, section mismatch |
 | Target pitch comparison | F0 extraction and target note mapping | engine-voice-pitch, melody mapping, evaluation | confidence thresholds, disputed ranges, low-confidence display |
-| Self-voice section preview | Minimal preview generation and render path | singing synthesis, vocoder render, mix master, storage | `preview_available=true`, `section_limited=true`, lineage to user voice input |
+| Self-voice section preview | Minimal partial-real preview generation and render path | engine-audio-ingest, engine-voice-pitch, melody mapping, constrained preview render, storage | `preview_available=true`, `section_limited=true`, lineage to user voice input |
 | App-only playback | Short-lived signed GET and playback audit | App, BFF/API Gateway, storage, audit | no download/share/export, URL denied when blocked |
 | Job status and partial artifact handling | Canonical job state owner and StageResult ledger | worker, DB, BFF, App | no BFF-invented final state, timeout terminal state |
 | Rating and failure tags | Playback telemetry, rating, failure tag taxonomy | App, BFF/API Gateway, DB/analytics | rating only after meaningful preview playback |
 | Educator/expert review | Separate web review queue and detail surface | Internal web, BFF/API Gateway, DB, storage | only consented jobs, no raw audio by default |
 | Retention and deletion | Artifact retention deadline, deletion jobs, evidence ledger | worker, storage, DB, audit | raw audio 30-day default, deletion evidence, playback block on failure |
-| Contact follow-up | Optional opt-in, encrypted contact storage, audit | App/internal web, BFF/API Gateway, DB, KMS/Vault or OS keychain | disabled unless contact collection gate passes |
+| Contact follow-up | Gate-only disabled contact capability | App/internal web, BFF/API Gateway, DB, KMS/Vault or OS keychain | no collection or sending unless contact collection gate is explicitly enabled later |
 
 ## Architecture / Approach
 
@@ -53,8 +53,8 @@ P0 기술 목표는 상업 품질의 full-song generation이 아니라, 다음 �
 
 P0 uses the existing workspace shape and does not introduce a standalone Conversion Job Orchestrator service.
 
-- `vox2vocal-app`: learner mobile/web surface for auth, song selection, section selection, recording, result, rating, deletion settings, and contact follow-up opt-in.
-- Internal web surface: admin song package, educator/expert review, governance evidence, deletion/audit review. This is separate from the learner app.
+- `vox2vocal-app`: learner mobile/web surface for auth, song selection, section selection, recording, result, rating, deletion settings, and contact follow-up gate UI when enabled.
+- Internal web surface: P0 defines role-gated web routes in the same app/web structure, such as `/internal`, for admin song package, educator/expert review, governance evidence, deletion/audit review. A separate admin project is Later; the security and API boundary must still be separate from learner routes.
 - `vox2vocal-bff-server`: GraphQL BFF for app and internal web surfaces. It shapes app-facing schemas and forwards authenticated requests to API Gateway.
 - `vox2vocal-api-gateway`: internal orchestration boundary. It forwards auth/user context and exposes internal service calls through gRPC or equivalent internal contracts.
 - `vox2vocal-user-service`: account, auth, user identity, role/status.
@@ -64,6 +64,11 @@ P0 uses the existing workspace shape and does not introduce a standalone Convers
 - PostgreSQL: source-of-truth records for users, consent, song package, upload sessions, jobs, stage results, artifacts, ratings, audits, deletion evidence, and contact preferences.
 - NATS JetStream: durable engine pipeline event stream.
 - Redis/BullMQ: app-facing or operational async jobs such as email, scheduled deletion worker dispatch, small notifications, and retryable app tasks.
+
+P0 runtime dependency decision:
+
+- NATS JetStream is a required P0 runtime dependency in every local/internal environment.
+- If a runtime does not already provide NATS JetStream, `vox2vocal-infra` must include provisioning, stream setup, durable consumer setup, and healthcheck work before engine pipeline testing.
 
 ### Core Flow
 
@@ -118,6 +123,17 @@ engine event
 
 The adapter belongs to `worker` for P0. Engines should not write directly into job-state tables. This keeps engine evolution independent while preserving one canonical projection.
 
+P0 NATS event contract defaults:
+
+- Stream: `VOX2VOCAL_AUDIO`.
+- Subject prefix: `audio`.
+- Required ingest subjects: `audio.ingest.requested`, `audio.ingest.started`, `audio.ingest.completed`, `audio.ingest.failed`, `audio.ingest.dead_letter`.
+- Required envelope fields: `schema_version`, `event_id`, `trace_id`, `job_id`, `audio_asset_id`, `target_section_id`, `attempt`, `occurred_at`, `producer`, `payload`.
+- `audio.ingest.requested` payload must include the source object reference, expected content constraints, target song package id, target section id, and idempotency key reference.
+- `audio.ingest.completed` payload must include canonical artifact reference, duration, sample rate, channel count, loudness/silence summary, validation confidence, and warnings.
+- `audio.ingest.failed` and `audio.ingest.dead_letter` payloads must include machine-readable failure code, user-safe reason category, retryability, attempt count, and source event id.
+- Downstream engine events after ingest may keep engine-specific payloads, but must keep the same envelope fields and be normalized into StageResult before reaching app-facing job state.
+
 ### Upload And Playback Approach
 
 Recorder take and fallback upload both use presigned direct object storage upload.
@@ -128,16 +144,24 @@ Recorder take and fallback upload both use presigned direct object storage uploa
 - Only `completeAudioUpload` creates the conversion job and outbox event.
 - Preview playback uses short-lived signed GET URL.
 - Reference pre-listen uses a separate signed URL path and is denied unless `reference_prelisten_allowed=true`, scope allows the selected section, no active recording is in progress, and audit write succeeds.
+- P0 object storage backend is MinIO for local/internal operation. Keep the storage interface S3-compatible so later migration to managed S3-compatible storage does not change app/BFF contracts.
+- In-app recorder may upload a platform-native recording format when necessary, but `audio-ingest` is the authoritative normalization boundary. A job is not considered ingested until the input is validated and normalized into the accepted canonical audio contract.
 
 ### Engine Pipeline Approach
 
-Engine composition remains current because it supports the final product goal. P0 depth is constrained:
+Engine composition remains current because it supports the final product goal. P0 depth is constrained around a partial-real, lineaged preview:
 
-- P0 critical path: `audio-ingest`, `voice-pitch`, `melody-mapping`, `singing-synthesis`, `vocoder-render`, lightweight `mix-master`, `evaluation`, `safety-rights`.
+| Option | Path | P0 Use | Counts For P0 Self-voice Success |
+| --- | --- | --- | --- |
+| `mock` | `upload -> job state -> static/fake preview -> playback/rating UI` | UI, loading/error/result layout testing only | No |
+| `partial_real` | `audio-ingest -> section validation -> user pitch extraction -> target pitch mapping -> constrained self-voice preview -> lightweight render/evaluation -> safety-rights` | Recommended alpha path | Yes, if lineage and playback criteria pass |
+| `real_synthesis` | `audio-ingest -> voice-pitch -> melody-mapping -> singing-synthesis -> vocoder-render -> mix-master -> evaluation -> safety-rights` | Preferred long-term path; P0 feature flag or shadow path after partial-real stabilizes | Yes |
+
+P0 recommendation is `partial_real`. It must be derived from the committed user voice input, app-playable, section-limited, and machine-checkable against `source_audio_asset_id`. Pitch-only success never counts as self-voice preview success.
+
+- P0 critical path: `audio-ingest`, section validation, `voice-pitch`, target pitch mapping, constrained preview generation/render, lightweight `evaluation`, `safety-rights`.
 - P0 limited/supporting: `voice-analysis` for energy/silence/quality hints if useful.
-- P0 non-blocking or Later depth: `phoneme-alignment`, `rhythm-timing`, `expression`, `voice-conversion`, unless a selected preview path specifically requires them.
-
-`partial_real` can count for P0 self-voice success only when the preview artifact is derived from the committed user voice input and machine-checkable lineage exists.
+- P0 non-blocking or Later depth: `phoneme-alignment`, `rhythm-timing`, full `singing-synthesis`, full `vocoder-render`, full `mix-master`, `expression`, `voice-conversion`, unless the selected preview path specifically requires them.
 
 ## Frontend Changes
 
@@ -152,7 +176,7 @@ Implement or extend these screens:
 - Processing Status
 - Result / Preview / Rating
 - Data / Consent / Deletion Settings
-- Contact follow-up opt-in UI when gate is enabled
+- Contact follow-up opt-in UI remains hidden/disabled in P0 unless the contact collection gate is explicitly enabled later.
 
 Recorder requirements:
 
@@ -200,7 +224,7 @@ BFF exposes app/internal web GraphQL operations and does not own domain state.
 
 Required changes:
 
-- GraphQL schema for song package, section selection, recorder upload session, job status, result, playback URL, rating, failure tags, deletion, contact follow-up, admin package management, review queue.
+- GraphQL schema for song package, section selection, recorder upload session, job status, result, playback URL, rating, failure tags, deletion, disabled-by-default contact follow-up gate, admin package management, review queue.
 - Auth context extraction and forwarding to API Gateway.
 - No logging of upload body, signed URL secrets, playable preview URLs, tokens, full lyrics, or contact plaintext.
 
@@ -215,7 +239,7 @@ Required changes:
 - Add job status/result/playback internal contracts.
 - Add song package and section contracts.
 - Add rights/risk/admin contracts.
-- Add consent/deletion/contact contracts.
+- Add consent/deletion contracts and disabled-by-default contact gate contracts.
 
 ### User Service
 
@@ -224,7 +248,7 @@ User Service remains owner of account/auth/user identity.
 Required changes:
 
 - Role/status field must support learner, educator/expert, admin, engine developer, product QA, security/ops.
-- Internal surface access may require stronger authentication later. P0 MFA mechanism is an open question unless already implemented elsewhere.
+- Internal surface access uses role allowlist and audit in P0. MFA/step-up is a Later requirement for high-risk admin/review/governance actions unless already implemented elsewhere.
 
 ### Worker
 
@@ -259,6 +283,16 @@ Safety Rights must be invoked before:
 
 This section defines TRD-level contracts. Exact request/response schemas should be expanded with `api-data-contract-planner`.
 
+P0 contract defaults:
+
+- API Gateway internal contracts should be proto-first where a service boundary exists; BFF GraphQL derives app-facing schemas from those contracts.
+- BFF and API Gateway are facades. They do not own canonical job state and must not write foreign domain tables directly.
+- Every write API must define auth scope, idempotency behavior, validation rules, audit behavior, state transition effects, and user-safe error codes before ticketing.
+- Standard user-safe error codes start with `auth_required`, `role_denied`, `consent_missing`, `consent_outdated`, `rights_blocked`, `rights_under_review`, `deletion_running`, `audit_failed`, `upload_expired`, `upload_invalid`, `idempotency_conflict`, `stage_failed`, `preview_unavailable`, `step_up_required`.
+- Client-provided consent or rights refs are not authoritative. Server-side commit paths must compute and lock the current consent, rights, risk, song package, section, BPM/key, and reference asset snapshots.
+- Job creation snapshots should include immutable ids or hashes for `song_package_revision_id`, `section_revision_id`, `reference_asset_id`, `reference_asset_checksum`, `rights_record_revision_id`, `risk_acceptance_id`, and `consent_snapshot_id/hash`.
+- Ratings should be accepted only after a playback session or playback audit proves the metric-eligible preview was issued and played.
+
 ### Auth
 
 - `signUp(email, password, displayName)`
@@ -281,9 +315,9 @@ Must return rights state, exposure decision, section metadata, BPM/key defaults,
 ### Upload And Job Creation
 
 - `createAudioUploadSession(originalFilename, contentType, contentLength, songPackageId, sectionId)`
-- `completeAudioUpload(uploadSessionId, idempotencyKey, songPackageId, sectionId, consentSnapshotRef, rightsFlagSnapshotRef, takeId?)`
+- `completeAudioUpload(uploadSessionId, idempotencyKey, songPackageId, sectionId, takeId?)`
 
-`completeAudioUpload` is the job creation boundary. It must return either an existing idempotent job projection or a new job id/projection.
+`completeAudioUpload` is the job creation boundary. It must return either an existing idempotent job projection or a new job id/projection. It verifies the upload session and object HEAD, computes authoritative consent, rights, risk, song package, section, BPM/key, and reference asset snapshots server-side, commits the job and outbox row in one transaction, and rejects conflicting idempotency keys. The client must not provide authoritative consent or rights refs.
 
 ### Job Status And Result
 
@@ -297,12 +331,38 @@ Job status must include canonical state, output flags, stage summaries, user-saf
 
 - `issuePreviewPlaybackUrl(jobId, artifactId)`
 - `issueReferencePrelistenUrl(songPackageId, sectionId)`
+- `recordPreviewPlaybackEvent(playbackSessionId, artifactId, eventId, clientSequence, schemaVersion, occurredAt, eventType, positionMs, durationMs, muted, appForeground, playedRangeStartMs?, playedRangeEndMs?, errorCode?)`
 
-Both require audit write success. Reference pre-listen must fail if active recording is in progress or scope does not allow selected section.
+Preview playback URL issuance returns a `playback_session_id` and requires audit write success. Reference pre-listen must fail if active recording is in progress or scope does not allow selected section.
+
+Playback event defaults:
+
+- Event types: `playback_started`, `playback_progress`, `playback_paused`, `playback_seeked`, `playback_ended`, `playback_error`.
+- Every playback event must include `event_id`, `schema_version`, `occurred_at`, and a monotonically increasing `client_sequence` within the playback session.
+- The app should send `playback_progress` every 1 second while foreground, unmuted playback is active.
+- The app must also flush playback progress on pause, seek, end, background, mute, and error.
+- The server computes `unique_timeline_coverage` by merging distinct played ranges. Client-reported `total_played_ms` is not trusted for metric eligibility.
+- Duplicate or out-of-order playback events must be idempotently merged by `playback_session_id`, `artifact_id`, event id, and played range.
+
+`preview_played=true` requires all of the following:
+
+- `preview_artifact_id` exists.
+- `pipeline_mode` is `partial_real` or `real_synthesis`.
+- `mock_fixture_used=false`.
+- `section_limited=true`.
+- `playback_blocked=false`.
+- `playback_session_id` exists.
+- signed playback URL issuance audit succeeded.
+- playback started while app was foregrounded.
+- player was not muted.
+- no severe playback error occurred.
+- unique timeline coverage is at least 80% of preview duration.
+
+For `Mist intro` at 28 seconds, this means at least 22.4 seconds of distinct preview timeline must be heard. Replaying the same short segment repeatedly must not inflate `unique_timeline_coverage`.
 
 ### Rating And Review
 
-- `submitPreviewRating(jobId, artifactId, rating, ratingPromptVersion)`
+- `submitPreviewRating(jobId, artifactId, playbackSessionId, rating, ratingPromptVersion)`
 - `submitFailureTags(jobId, artifactId, tags, otherText?)`
 - `reportPlaybackProblem(jobId, artifactId, reason)`
 - `listReviewableJobs(filter)`
@@ -310,7 +370,7 @@ Both require audit write success. Reference pre-listen must fail if active recor
 - `submitReviewComment(jobId, comment)`
 - `submitTechnicalTags(jobId, tags)`
 
-User perception tags and internal technical tags must be stored separately.
+User perception tags and internal technical tags must be stored separately. Rating submission is allowed only after `preview_played=true`. Ratings below 4 require at least one failure tag or `other`.
 
 ### Consent, Deletion, Contact
 
@@ -341,6 +401,24 @@ Admin writes must fail closed if audit write fails.
 
 P0 requires additive schema changes. Exact Prisma models and migrations should be defined in the API/data contract planning step.
 
+### P0 Data Ownership Matrix
+
+Use schema-bounded ownership instead of one giant owner. PostgreSQL may remain one cluster/database in P0, but write ownership and migration ownership must be separated.
+
+| Domain / table group | Owning repo/service | Write path | Read path |
+| --- | --- | --- | --- |
+| `users`, auth/session data, role/status | `vox2vocal-user-service` | User Service Prisma/migrations | API Gateway -> User Service -> BFF/App |
+| account-level `consent_records` | `vox2vocal-user-service` | User Service computes current account consent | API Gateway/BFF read current consent status |
+| `contact_preferences` | `vox2vocal-user-service` | User Service behind contact collection gate | masked read only; no plaintext UI in P0 |
+| song packages, section maps, reference assets, rights/risk records | `vox2vocal-worker` `conversion-job-state` bounded module for P0 | admin seed/admin-write path through API Gateway; separate admin project Later | BFF/API Gateway read projections |
+| upload sessions, audio assets, conversion jobs, job snapshots | `vox2vocal-worker` `conversion-job-state` bounded module | `completeAudioUpload` and worker-owned module | BFF/API Gateway read app-facing projection |
+| `stage_results`, `artifact_refs`, `outbox_events` | `vox2vocal-worker` `conversion-job-state` bounded module | worker event consumer / adapter | BFF/API Gateway read projection; engines never write tables directly |
+| playback sessions, ratings, failure tags, technical tags | `vox2vocal-worker` `conversion-job-state` bounded module | app/reviewer APIs through API Gateway | product/QA/review projections |
+| deletion requests/evidence hooks | `vox2vocal-worker` with platform/storage integration | deletion worker and audit write | governance/review projections |
+| audit schema baseline, PostgreSQL grants, storage/NATS/Redis resources | `vox2vocal-infra` / platform owner | infra migrations/provisioning | services use least-privilege credentials |
+
+BFF and API Gateway must remain facades. Engines emit typed stage events only and must not write job-state tables directly.
+
 Core tables or model groups:
 
 - `users`: existing user identity plus role/status compatibility.
@@ -357,6 +435,7 @@ Core tables or model groups:
 - `stage_results`: normalized stage ledger.
 - `artifact_refs`: storage pointer, data class, status, rights state, playback allowed, retention deadline.
 - `outbox_events`: pending engine requests after job commit.
+- `playback_sessions`: issued preview playback session, audit refs, playback progress, muted/app foreground flags, severe error status, unique timeline coverage.
 - `ratings`: artifact rating, prompt version, playback eligibility.
 - `failure_tags`: user perception tags and optional `other`.
 - `technical_tags`: reviewer/engine developer tags.
@@ -372,6 +451,12 @@ Migration principles:
 - Store enums in a backward-compatible way or plan enum migration carefully.
 - Keep playable URLs out of DB; store artifact identity and storage path only.
 - Keep raw audio, generated preview, full lyrics, tokens, secrets, and contact plaintext out of logs.
+- Use expand/contract migrations: add nullable structures first, deploy compatible code, backfill/validate, then tighten constraints in a later migration.
+- Prefer text values plus validation or lookup tables for unstable state enums until P0 state names settle.
+- Add unique constraints for upload completion idempotency, job per upload session, stage event dedupe, and outbox dedupe.
+- Job creation and outbox insert must be one database transaction.
+- Rollback disables feature flags and outbox publishing; it must not drop P0 data tables or delete audit/deletion evidence.
+- DB roles should enforce ownership: BFF has no direct write role, engines have no job table write role, worker writes conversion schema, and user-service writes user/consent/contact schema.
 
 ## Auth / Permissions
 
@@ -400,6 +485,16 @@ Critical permission rules:
 - Contact plaintext reveal is disabled in P0 unless a separate approver/key process exists.
 - Break-glass raw/canonical audio access is disabled in P0 1-person operation.
 - Any action involving rights, consent, playback URL, deletion, contact decrypt/send, or risk acceptance requires audit success.
+
+P0 auth/security defaults:
+
+- Learner auth starts with email/password plus email verification. Unverified users cannot submit uploads, create jobs, or issue playback URLs.
+- Internal routes use a separate RBAC guard, allowlist, feature flag, and audit requirement even when they live in the same app/web structure.
+- All sensitive API decisions must be rechecked server-side: `user_id`, role/status, consent snapshot, rights state, deletion state, and audit write success.
+- MFA means a second authentication factor beyond password, such as OTP, passkey, or hardware security key.
+- Step-up authentication means requiring that extra verification again immediately before high-risk actions even if the user is already logged in.
+- P0 does not require learner step-up for normal recording/playback. Later admin/review/governance step-up candidates are reference audio upload/replace/delete, song publish/block, rights state change, risk acceptance, role elevation, retention policy change, deletion override, contact decrypt/send, and raw/canonical audio break-glass.
+- Because P0 has no separate second reviewer/security owner, contact plaintext reveal and raw/canonical audio human break-glass remain disabled.
 
 ## Observability
 
@@ -432,6 +527,8 @@ Required events/metrics:
 - preview ready/completed/failed
 - playback URL issued/denied
 - playback started/ended/error
+- playback progress with distinct timeline coverage
+- `preview_played=true` threshold reached
 - rating submitted
 - failure tags submitted
 - consent granted/withdrawn
@@ -441,6 +538,14 @@ Required events/metrics:
 - contact send/decrypt denied or performed by service path
 
 Logs must exclude raw audio, generated preview URLs, signed URL secrets, access tokens, refresh tokens, passwords, provider secrets, full lyrics, contact plaintext, and sensitive free text.
+
+Reason code and alert defaults:
+
+- Safety gates must emit standardized allow/deny reason codes, including `consent_missing`, `consent_outdated`, `rights_blocked`, `rights_under_review`, `audit_failed`, `deletion_running`, `role_denied`, `step_up_required`, and `playback_blocked`.
+- Success-metric dashboard: funnel events, section job completion, metric-eligible preview playback, rating distribution, failure tags, pitch confidence, and time-to-preview.
+- Safety/operations dashboard: audit write failures, playback URL deny spikes, rights state changes, deletion failures, outbox backlog, engine timeout P95, queue depth, signed URL issuance errors.
+- Alerts should start for `audit_failed` spikes, any `deletion_failed`, rights block/unblock changes, oldest queued job over threshold, outbox backlog growth, and P95 timeout regression.
+- Observability stores `artifact_id` and audit ids, not signed URLs or playable preview URLs.
 
 ## Performance / Security Considerations
 
@@ -453,6 +558,29 @@ Performance targets:
 - Playback URL TTL starts at 5 minutes.
 - `P0_MAX_UPLOAD_BYTES` starts at 50 MB.
 
+Alpha capacity defaults:
+
+| Area | P0 Default |
+| --- | --- |
+| Concurrent P0 conversion jobs | `2` active jobs globally |
+| Heavy preview/synthesis concurrency | `1` active preview synthesis/render job |
+| Ingest/pitch/evaluation worker concurrency | `2` per stage in a small internal runtime |
+| Job-state/outbox workers | `1` outbox publisher and `2` StageResult consumers |
+| Queue depth warning | waiting jobs `>= 4` for 5 minutes or oldest queued job `>= 10 minutes` |
+| Queue depth critical/throttle | stop accepting non-admin P0 jobs at waiting jobs `>= 8` or oldest queued job `>= 20 minutes` |
+| Per-stage soft timeout | ingest `5m`, pitch/mapping `5m`, partial-real preview synthesis `25m`, render/mix `10m`, evaluation `5m` |
+| End-to-end timeout | terminalize after `60m` from `completeAudioUpload.committed_at` |
+| User upload duration | hard max `60s`; do not silently process full-song input |
+| Generated preview coverage | `section_coverage_ratio >= 0.8` or duration within section tolerance |
+
+Storage and audio normalization defaults:
+
+- P0 local/internal object storage is MinIO.
+- Storage contracts must remain S3-compatible.
+- Fallback upload accepts `.wav` and `.mp3` only.
+- In-app recorder may submit platform-native audio when the app cannot reliably export `.wav` or `.mp3`, but `audio-ingest` must validate and normalize it before `audio_ingest=succeeded`.
+- Canonical audio for downstream engines is normalized mono WAV/PCM.
+
 Security and privacy controls:
 
 - All audio-bearing object storage is private by default.
@@ -463,21 +591,29 @@ Security and privacy controls:
 - Keep contact follow-up behind an explicit gate: authenticated encryption, keyed hash, key management service, audit write success, no plaintext UI, no CSV export.
 - Use rights state and risk acceptance on every selection, job creation, engine request, and playback issuance path.
 
+Runtime policy changes:
+
+- If required consent is withdrawn while a job is `created`, `queued`, `processing`, `preview_ready`, or `completed`, block new engine requests and new playback URLs immediately. Processing jobs should move to `blocked` unless deletion is requested.
+- If rights become `blocked`, `under_review`, or `expired`, block song selection, new job creation, engine requests, reference pre-listen, and generated preview playback. Preserve artifacts for policy review unless deletion is also requested.
+- If deletion is requested, mark related artifacts `deletion_pending`, block new playback URLs, enqueue deletion, and write deletion evidence. If deletion fails, mark `deletion_failed` and require platform/storage owner review.
+- If audit write fails for a rights-sensitive action, fail closed and do not create the job, publish the engine request, issue playback, or change rights state.
+
 ## Rollout / Rollback Plan
 
 ### Rollout
 
-1. Add database tables and read models behind feature flags.
+1. Add additive database tables, DB grants, and read models behind feature flags.
 2. Implement consent records and job consent snapshot.
-3. Implement song package and section package read path.
+3. Implement song package, section package, rights/risk evidence source of truth, and read path.
 4. Implement recorder/take review UI and upload session path.
 5. Implement `completeAudioUpload` and `conversion-job-state`.
-6. Integrate `audio-ingest` and StageResult adapter.
-7. Add minimal pitch and preview pipeline.
-8. Add result playback, rating, and failure tags.
-9. Add internal web surfaces for admin, review, governance.
-10. Enable contact follow-up only after contact collection gate passes.
-11. Run internal allowlist P0 with `Mist intro`.
+6. Implement transactional outbox and StageResult schema validation.
+7. Integrate `audio-ingest` and StageResult adapter.
+8. Add partial-real pitch and preview pipeline.
+9. Add result playback, playback audit/session, rating, and failure tags.
+10. Add same-structure role-gated internal web routes for admin, review, governance.
+11. Keep contact follow-up disabled. Enable only after the contact collection gate passes in a later decision.
+12. Run internal allowlist P0 with `Mist intro`.
 
 ### Rollback
 
@@ -490,6 +626,10 @@ Rollback must be operationally safe rather than only code rollback.
 - Retain deletion jobs and audit evidence even if UI is rolled back.
 - Disable contact follow-up by turning off the contact collection gate.
 - If engine pipeline is unstable, stop outbox publishing for new engine requests and preserve existing jobs as failed/blocked/needs_review with user-safe reasons.
+- Use explicit kill switches: `disable_complete_audio_upload`, `disable_playback_url_issue`, `disable_reference_prelisten`, `disable_internal_admin_writes`, `stop_engine_outbox_publish`.
+- Already issued signed URLs cannot be reliably revoked; mitigation is short TTL, artifact blocked state, and denying all new URL issuance.
+- Rollback must not drop P0 tables, erase audit evidence, or erase deletion evidence. Use feature flags and outbox pause/drain/replay instead.
+- Worker rollback must define how pending outbox events and partially completed jobs are marked, retried, or moved to `needs_review`.
 
 ## Test Plan
 
@@ -504,6 +644,8 @@ Rollback must be operationally safe rather than only code rollback.
 - playback URL eligibility
 - deletion evidence creation
 - contact preference encryption/deletion validation
+- user-safe error code mapping
+- StageResult schema validation and enum compatibility
 
 ### Integration Tests
 
@@ -517,6 +659,12 @@ Rollback must be operationally safe rather than only code rollback.
 - rating/failure tag submission
 - consent withdrawal blocks playback and review access
 - deletion request blocks playback and creates deletion job
+- GraphQL to internal proto/gRPC contract compatibility
+- transactional job creation plus outbox insert rollback on failure
+- NATS duplicate/replay event handling
+- playback progress interval, event id/schema version validation, duplicate/out-of-order event merge, and unique timeline coverage calculation
+- object storage lifecycle and retention/deletion flow
+- DB ownership/grant test: BFF and engines cannot directly write owned domain tables
 
 ### E2E Tests
 
@@ -535,6 +683,8 @@ Rollback must be operationally safe rather than only code rollback.
 - role-based access denies cross-user job access.
 - contact follow-up disabled without key management gate.
 - break-glass raw/canonical audio access disabled without second reviewer/security owner.
+- internal routes require role allowlist and never fall through to learner access.
+- playback rating cannot be submitted without metric-eligible playback audit/session.
 
 ## Risks and Tradeoffs
 
@@ -542,7 +692,7 @@ Rollback must be operationally safe rather than only code rollback.
 - `worker` as canonical job state owner avoids a new orchestrator service but can grow beyond simple queue responsibilities. Mitigation: keep `conversion-job-state` as a bounded module with clear tables and outbox.
 - Presigned upload/playback reduces BFF file handling cost but adds object storage validation and signed URL leakage risk. Mitigation: short TTL, object HEAD verification, no signed URL logging.
 - App-side audio normalization can reduce server cost but may vary by platform. Mitigation: app may pre-normalize only when output contract is reliable; ingest remains authoritative.
-- Contact follow-up is useful for internal learning but introduces sensitive data handling. Mitigation: explicit opt-in, encrypted storage, gate, no plaintext UI, no CSV export.
+- Contact follow-up is useful for internal learning but introduces sensitive data handling. Mitigation: keep it gate-only and disabled by default in P0; require explicit opt-in, encrypted storage, audit, no plaintext UI, and no CSV export before enabling.
 - `partial_real` can accelerate validation but risks overstating product readiness. Mitigation: require machine-checkable user voice lineage and exclude mock from success metrics.
 
 ## Alternatives Considered
@@ -553,22 +703,30 @@ Rollback must be operationally safe rather than only code rollback.
 - BFF-owned job state: rejected because BFF should not be source of truth for final processing states.
 - Engine-owned final job state: rejected because different engines would compete over app-facing final state.
 - Server-only upload path through BFF: rejected for cost and scalability; presigned direct object storage is preferred.
-- Contact follow-up outside the product: rejected as the final P0 direction, but contact UI remains disabled if the encryption/key/audit gate is not ready.
+- Fully enabled contact follow-up in P0: rejected. P0 keeps the gate and data model only; contact UI remains hidden/disabled until encryption/key/audit requirements pass in a later decision.
+
+## Resolved P0 Technical Decisions From Review
+
+- DB/schema ownership uses schema-bounded ownership: User Service owns identity/account consent/contact preferences; Worker `conversion-job-state` owns P0 song package, rights/risk, upload, job, stage, artifact, rating/tag, and deletion workflow tables; Infra owns PostgreSQL grants and platform resources.
+- API Gateway internal contracts are proto-first where a service boundary exists; BFF GraphQL derives app-facing contracts and stays a facade.
+- NATS JetStream is a required P0 runtime dependency. Infra must provision it wherever it is missing.
+- P0 ingest event defaults use `VOX2VOCAL_AUDIO` stream, `audio` subject prefix, required ingest subjects, and a shared envelope with `schema_version`, `event_id`, `trace_id`, `job_id`, `audio_asset_id`, `target_section_id`, `attempt`, `occurred_at`, `producer`, and `payload`.
+- First metric-eligible preview path is `partial_real` lineaged preview. `real_synthesis` is preferred long-term and may run as a feature-flagged or shadow path. `mock` and pitch-only success do not count for P0 self-voice success.
+- Internal admin/review/governance surfaces use the same app/web structure for P0 with separate role-gated routes, RBAC, feature flags, and audit. A separate admin project is Later.
+- Rights evidence and risk acceptance source of truth lives in DB from P0 through seed/admin-write paths before the separate admin project exists.
+- Learner MFA/step-up is not required for normal P0 recording/playback. Later admin/review/governance step-up is required for high-risk actions. P0 break-glass and contact plaintext reveal remain disabled without a second reviewer/security owner.
+- Alpha capacity defaults start at 2 concurrent P0 conversion jobs globally, 1 heavy preview/render job, 60-minute end-to-end timeout, 15-minute upload URL TTL, 5-minute playback URL TTL, and 50 MB upload size guard.
+- P0 object storage backend is MinIO with an S3-compatible contract.
+- Ingest owns authoritative audio normalization. The app may pre-normalize only when reliable; fallback upload accepts `.wav` and `.mp3`, while recorder output can be normalized by `audio-ingest`.
+- `preview_played=true` requires a real `partial_real` or `real_synthesis` preview, successful playback audit/session, foreground unmuted playback, no severe playback error, and at least 80% unique timeline coverage. For `Mist intro`, that is at least 22.4 seconds of distinct timeline coverage.
+- Playback telemetry uses 1-second foreground/unmuted progress events with `event_id`, `schema_version`, `occurred_at`, and session-scoped `client_sequence`; the server merges distinct played ranges and does not trust client total playback time.
+- Contact follow-up is gate-only and disabled by default in P0.
 
 ## Open Technical Questions
 
-- Which repository will own the database schema for song package, job state, consent, artifact, audit, deletion, and contact tables?
-- Will API Gateway expose new internal contracts as gRPC proto first, or will some P0 contracts start as HTTP/internal module calls?
-- What exact storage backend will P0 use for local/internal operation: MinIO, S3-compatible storage, or another object store?
-- Can the app reliably export recorder takes as `.wav` or `.mp3` on every target platform, or must ingest normalize platform-native formats for all recordings?
-- Which minimal `partial_real` or `real_synthesis` engine path will produce the first metric-eligible self-voice preview?
+- What is the exact request/response schema, error taxonomy, and versioning policy for each new BFF GraphQL and API Gateway proto contract?
 - What is the exact event schema for each engine stage before StageResult normalization?
-- Does NATS JetStream already exist in every P0 runtime environment, or must TRD include provisioning work?
-- Will internal web surfaces live in `vox2vocal-app` web routes or a separate internal web app?
-- What KMS/Vault/OS keychain option will satisfy the contact collection gate for P0?
-- Who is the second reviewer or security owner if break-glass or contact plaintext reveal ever becomes necessary?
-- Where will rights evidence and risk acceptance be stored as source of truth before the admin web is implemented?
-- What is the final MFA or step-up authentication requirement for admin/review/governance surfaces?
+- If break-glass or contact plaintext reveal is ever enabled after P0, who becomes the second reviewer or security owner?
 
 ## References
 
