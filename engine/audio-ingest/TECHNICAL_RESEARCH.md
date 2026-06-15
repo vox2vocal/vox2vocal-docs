@@ -134,7 +134,7 @@ App / BFF
       -> ffmpeg decode/resample/mono
       -> librosa/soundfile/numpy metadata + segmentation
       -> store canonical wav + manifest
-  -> publish audio.ingested
+  -> publish audio.ingest.completed
   -> engine-voice-analysis
 ```
 
@@ -598,7 +598,7 @@ MVP 기준 권장 목표:
 - api-gateway와 ingest job 생성 계약 정의
 - `audio_asset_id` 발급 흐름 확정
 - upload session API 설계
-- 후속 `engine-voice-analysis`로 `audio.ingested` 이벤트 발행
+- 후속 `engine-voice-analysis`가 소비할 수 있도록 `audio.ingest.completed` 이벤트 발행
 
 ### Phase 4: Production Hardening
 

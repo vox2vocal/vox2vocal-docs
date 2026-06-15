@@ -220,7 +220,7 @@ audio.ingest.requested
 audio.ingest.started
 audio.ingest.completed
 audio.ingest.failed
-audio.asset.updated
+audio.ingest.dead_letter
 ```
 
 stream subject pattern:
@@ -388,7 +388,7 @@ input.mp3
 
 ## 10. Engine Pod 필수 구성
 
-NATS JetStream은 이미 Kubernetes 인프라에 구축되어 있다고 가정한다. 따라서 `engine-audio-ingest` pod에는 NATS 서버가 아니라 NATS에 접속할 client와 오디오 ingest 런타임만 포함한다.
+NATS JetStream은 P0 필수 런타임 의존성이다. `engine-audio-ingest` pod에는 NATS 서버가 아니라 NATS에 접속할 client와 오디오 ingest 런타임만 포함한다. 다만 local/internal runtime에 NATS JetStream이 없다면 `vox2vocal-infra`가 stream, durable consumer, healthcheck를 먼저 provision해야 한다.
 
 ### 10.1 필수 OS packages
 
