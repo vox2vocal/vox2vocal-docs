@@ -1,8 +1,8 @@
 # Vox2Vocal MVP Page / Flow Plan
 
-문서 버전: v0.2
+문서 버전: v0.3
 작성일: 2026-06-13
-기준 문서: `pm/vox2vocal-mvp-feature-definition.md` v0.4
+기준 문서: `pm/vox2vocal-mvp-feature-definition.md` v0.5
 적용 skill: `page-flow-planner`
 
 ## Flow Summary
@@ -14,7 +14,7 @@ P0 화면은 네 surface로 나눈다.
 - Learner app: access eligibility, 곡 선택, section 선택, consent, recording/take review, fallback upload, processing, preview/result, rating, deletion request
 - Limited admin: reference audio upload, song package, section map, rights/risk exposure control
 - Educator/expert review: 동의된 job의 preview, pitch report, failure tags, quality summary 검토
-- Internal governance: audit/deletion evidence, contact follow-up gate, break-glass disabled 상태 확인
+- Internal governance: audit/deletion evidence, contact follow-up disabled capability, break-glass disabled 상태 확인
 
 P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이터, 상태, CTA, navigation, feature mapping을 정리해 `spec-to-tickets`로 넘기는 기준 문서다.
 
@@ -131,15 +131,15 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 
 - Purpose: 학습자가 선택한 section 기준으로 앱에서 본인 목소리 take를 녹음하고, 제출 전 자기 take를 확인한다. BPM/key와 필수 동의 확인은 별도 사용자-visible page가 아니라 recorder 진입 gate와 제출 전 검증으로 처리한다. Fallback upload는 recorder를 사용할 수 없거나 내부 운영에서 enabled일 때만 제공한다.
 - Primary action: 본인 목소리 take를 녹음하고 replay 후 processing 시작을 요청한다.
-- Secondary actions: BPM/key snapshot 확인 또는 feature flag 기반 수정, consent 상세 보기와 재동의, optional candidate/contact consent, reference pre-listen before recording when allowed, lyric cue 확인 when allowed, retake, fallback upload, format/length guide 확인.
+- Secondary actions: BPM/key snapshot 확인 또는 feature flag 기반 수정, consent 상세 보기와 재동의, optional candidate data consent, reference pre-listen before recording when allowed, lyric cue 확인 when allowed, retake, fallback upload, format/length guide 확인.
 - Required data:
   - selected song package and section
   - BPM/key default and learner override value
   - consent policy document version/hash, consent scope, required/optional status
   - consent snapshot eligibility, snapshot hash
-  - consent types: `own_voice_processing`, `generated_preview`, `expert_review`, `retention_notice_ack`, `candidate_data_opt_in`, `contact_for_followup`
+  - consent types: `own_voice_processing`, `generated_preview`, `expert_review`, `retention_notice_ack`, `candidate_data_opt_in`
   - no capture/redistribution/public posting agreement for reference audio, lyrics, generated preview, and app output
-  - contact collection gate status
+  - disabled contact follow-up capability status
   - recorder session id
   - mic permission status
   - local take id
@@ -182,7 +182,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
   - consent policy load failure
   - consent policy document, version, scope, or required/optional status outdated
   - rights state changed before recording or commit
-  - contact collection gate unavailable
+  - contact follow-up capability disabled
   - mic permission denied
   - microphone unavailable
   - recorder failed
@@ -198,7 +198,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
   - signed-out/session expired 사용자는 재인증 필요
   - non-self voice suspicion은 P0에서 자동 판정하지 않지만 본인 음성 확인 동의 없이는 차단
   - expert review consent를 거부하면 P0 preview job은 시작하지 않지만 계정 사용은 유지
-  - contact collection gate가 준비되지 않으면 contact opt-in UI는 숨기거나 disabled
+  - contact follow-up capability는 P0에서 disabled이며 contact opt-in UI는 숨김
   - feature flag가 꺼진 사용자는 BPM/key correction read-only
   - learner reference audio upload는 허용하지 않음
   - reference pre-listen과 lyrics display는 권리 플래그가 허용한 경우만 노출
@@ -313,20 +313,20 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
   - consent records and policy versions
   - retention deadlines
   - deletion status and deletion evidence summary
-  - contact consent status when enabled
+  - disabled contact follow-up capability status
 - Key components:
   - consent status list
   - retention summary
   - deletion request CTA
   - withdrawal impact confirmation
   - deletion status tracker
-  - contact preference section if gate enabled
+  - contact follow-up disabled status
 - Empty state: 처리된 job이 없으면 삭제/보관 대상 없음 상태를 보여준다.
 - Loading state: consent and artifact retention loading.
 - Error state:
   - deletion request failed
   - deletion evidence unavailable
-  - contact preference update failed
+  - contact follow-up capability status unavailable
 - Permission state:
   - learner는 본인 데이터만 조회/철회/삭제 가능
   - `own_voice_processing` 또는 `generated_preview` 철회 시 existing preview playback 즉시 차단
@@ -457,23 +457,23 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 
 ### 11. Governance Evidence / Audit / Deletion
 
-- Purpose: P0 운영자가 audit, deletion evidence, risk acceptance, contact collection gate, break-glass disabled 상태를 확인한다.
+- Purpose: P0 운영자가 audit, deletion evidence, risk acceptance, contact follow-up disabled capability, break-glass disabled 상태를 확인한다.
 - Primary action: evidence record를 확인하고 unresolved risk/deletion failure를 처리한다.
-- Secondary actions: deletion job 상태 확인, audit failure 확인, contact collection gate 확인, break-glass request 차단 사유 확인.
+- Secondary actions: deletion job 상태 확인, audit failure 확인, contact follow-up disabled 상태 확인, break-glass request 차단 사유 확인.
 - Required data:
   - audit records
   - deletion evidence
   - risk acceptance records
   - retention deadlines
   - rights complaint and block records
-  - contact collection gate status
+  - disabled contact follow-up capability status
   - break-glass approver/second reviewer availability
 - Key components:
   - evidence table
   - risk acceptance detail
   - deletion job status
   - audit fail-closed status
-  - contact collection gate checklist
+  - contact follow-up disabled capability notice
   - break-glass disabled notice
 - Empty state: unresolved governance issue가 없으면 clean state를 보여준다.
 - Loading state: audit/deletion evidence loading.
@@ -493,6 +493,29 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 - Success signal:
   - 100%의 analysis/preview requests가 allow/deny decision과 audit record를 가짐
   - raw audio가 1년 retained dataset에 포함되지 않음
+
+## UI Design Handoff Notes
+
+This page plan is ready for a UI design agent, but it is not a visual mockup.
+
+Design priorities:
+
+- The learner app should feel like a focused practice tool, not a marketing landing page.
+- The first screen after login is the actual song selection flow, not an explanatory hero.
+- The core learner sequence must remain visually obvious: song -> section -> record -> processing -> preview -> rating.
+- The preview player is the primary component on the result page. Pitch and quality details are secondary.
+- Do not expose "alpha test" wording in the UI.
+- Contact follow-up UI, value collection, send, decrypt, and export are out of P0.
+- Reference pre-listen and lyrics cues must visually appear gated and section-limited when enabled; they must not look like full-song playback or full lyrics.
+- State labels should separate job status from rating status, especially `completed` versus rating submitted.
+- Permission-denied and rights-blocked states should give safe reasons without exposing internal policy details.
+
+Expected design deliverables:
+
+- Mobile-first learner flow wireframes for pages 1-7.
+- Web-first internal surface wireframes for pages 8-11.
+- State variants for blocked, failed, partial artifact, loading, empty, and permission-denied states.
+- Component inventory for recorder controls, preview player, rating control, failure tag selector, job state panel, rights status panel, and governance evidence table.
 
 ## Primary User Flow
 
@@ -533,7 +556,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 - Playback problem: rating 없이 `playback_problem_reported` event를 제출한다.
 - Consent withdrawal: generated preview playback, expert review access, new signed playback URL을 즉시 차단하고 deletion job을 예약한다.
 - Deletion failed: playback을 먼저 차단하고 Governance Evidence에서 owner review를 생성한다.
-- Contact collection gate unavailable: P0에서는 contact follow-up UI를 기본 숨김/disabled로 두고 core preview/rating flow는 계속 진행한다.
+- Contact follow-up capability disabled: P0에서는 contact follow-up UI, 값 저장, 발송, 복호화, export를 제공하지 않고 core preview/rating flow는 계속 진행한다.
 
 ## Page x Feature Matrix
 
@@ -566,7 +589,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 - 실패/부분 성공 상태에서 preview 가능 여부가 섞이면 metric이 흐려진다. `preview_available`, `playback_blocked`, `pipeline_mode`를 화면과 analytics에서 분리해야 한다.
 - `playback_problem_reported`를 낮은 rating과 섞으면 self-voice 품질 metric이 오염된다.
 - consent 철회와 deletion request의 차이가 불분명하면 신뢰가 무너질 수 있다. 철회 영향과 삭제 일정은 명확해야 한다.
-- contact follow-up은 P0에서 gate만 남기고 기본 hidden/disabled다. core preview flow, rating, failure tag 제출의 필수 단계처럼 보여서는 안 된다.
+- contact follow-up은 P0에서 disabled capability status만 남기고 기본 hidden/disabled다. core preview flow, rating, failure tag 제출의 필수 단계처럼 보여서는 안 된다.
 - educator/expert review 화면에서 raw audio 접근이 가능해 보이면 privacy expectation이 깨진다.
 - admin 화면이 full operations console처럼 커지면 P0 scope creep이 발생한다.
 
@@ -574,7 +597,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 
 - `unlicensed_internal_risk_accepted`를 실제로 켜기 위한 risk acceptance record의 source of truth는 PM 문서, DB, ticket 중 어디인가?
 - P0 내부 운영 기간 동안 second reviewer를 둘 수 있는가? 없으면 Governance Evidence는 break-glass disabled 상태를 어떻게 보여줄 것인가?
-- contact follow-up은 P0에서 gate와 disabled state만 정의한다. 실제 UI, backend 저장, 발송은 수익화 또는 외부 beta 전 권한/암호화/감사 owner를 갖춘 뒤 재결정한다.
+- contact follow-up은 P0에서 disabled capability status만 정의한다. 실제 UI, backend 저장, 발송, 복호화, export는 수익화 또는 외부 beta 전 권한/암호화/감사 owner를 갖춘 뒤 재결정한다.
 - 권리 evidence 없는 `Mist` 제한 노출은 내부 운영 종료 전 어느 시점에 `rights_pending`, `published`, 또는 `rights_blocked`로 재판정할 것인가?
 - mobile app과 web에서 admin/review/governance surface를 모두 제공할 것인가, 아니면 learner app은 mobile-first, internal surface는 web-first로 제한할 것인가?
 - reference pre-listen과 lyrics display flags의 source of truth는 admin rights/risk record, DB package field, ticket 중 어디인가?

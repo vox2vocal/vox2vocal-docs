@@ -1,8 +1,8 @@
 # Vox2Vocal MVP Feature Definition
 
-문서 버전: v0.4
+문서 버전: v0.5
 작성일: 2026-06-13
-기준 문서: `pm/vox2vocal-mvp-prd.md` v0.11, `pm/vox2vocal-mvp-prd-review.md`
+기준 문서: `pm/vox2vocal-mvp-prd.md` v0.12, `pm/vox2vocal-mvp-prd-review.md`
 적용 skill: `feature-definer`
 
 ## Context
@@ -467,7 +467,7 @@ P0는 `Mist` 전체 section map을 song package로 보관하되, 기본 target�
 | 녹음 화면 권리 플래그 미정 | Reference pre-listen, lyrics display, lyrics sync는 기본 차단하고, 명시적 권리 플래그와 scope가 있을 때만 section-limited로 노출한다. 활성 녹음 중 reference 동시 재생은 P0에서 제외한다. | 실제 rights/risk record 작성 |
 | Mock/partial-real/real synthesis 기준 미확정 | mock은 UI/flow 검증 전용이며 P0 self-voice success로 계산하지 않는다. `partial_real`은 real submitted voice input lineage와 app-playable section-limited preview가 machine-checkable할 때만 P0 success 후보로 인정한다. | 없음 |
 | Admin/reviewer path 미확정 | 제한된 admin 화면과 별도 educator/expert review 화면을 P0에 포함한다. | 화면 상세 flow는 page-flow-planner에서 확정 |
-| 연락 목적 개인정보 처리 | P0는 contact follow-up gate와 data model만 정의하고 기본 disabled로 둔다. `other` 자유입력은 feedback 텍스트로만 쓰며, SNS/메일 발송용 연락처 UI, 저장, 발송은 contact collection gate를 명시적으로 켜기 전까지 제공하지 않는다. | 수익화/외부 beta 전 연락처 수집 재검토 |
+| 연락 목적 개인정보 처리 | P0는 disabled contact follow-up capability status만 정의한다. `other` 자유입력은 feedback 텍스트로만 쓰며, SNS/메일 발송용 연락처 UI, 값 저장, 발송, 복호화, export는 P0 범위에서 제외한다. | 수익화/외부 beta 전 연락처 수집 재검토 |
 | owner 팀 부재 | P0에서는 개발자인 사용자가 deletion owner, policy owner, platform/storage owner를 겸임한다. 단, 자기 승인 break-glass와 contact plaintext reveal은 허용하지 않는다. | second reviewer 확보 여부 |
 | 권리 미확보 `Mist` learner 노출 | `unlicensed_internal_risk`는 learner 노출 금지 상태로 두고, risk acceptance가 기록된 `unlicensed_internal_risk_accepted`에서만 internal allowlist에 제한 노출한다. | 실제 risk acceptance record 작성 |
 | Rating timing 모호함 | `preview_played=true` 이후에만 `rating_required=true`가 된다. `completed`는 report 준비 상태이며 rating 완료 상태가 아니다. | 없음 |
@@ -609,7 +609,7 @@ Sources: [NIST SP 800-63B](https://pages.nist.gov/800-63-4/sp800-63b.html), [OWA
 | `expert_review` | Yes for P0 job | unchecked | signup/first login allowed, job snapshot required | 철회 즉시 educator/expert 접근 차단, review queue에서 숨김 |
 | `candidate_data_opt_in` | No | unchecked | optional, can be changed later | candidate dataset에서 제외하고 기존 candidate labels는 `withdrawn`으로 표시 |
 | `retention_notice_ack` | Yes | unchecked | signup/first login allowed, job snapshot required | 미동의 시 P0 job 생성 차단 |
-| `contact_for_followup` | No | unchecked | gate-only disabled in P0, optional and separated when enabled later | 철회 후 SNS/메일 발송 중지, 연락처 처리 목적 제한 |
+| `contact_for_followup` | No | unavailable | not collected in P0; optional and separated only when enabled later | P0에서는 연락처 값이 없으므로 철회/삭제 대상 없음 |
 
 Consent record는 최소 `consent_type`, `version`, `scope`, `required`, `granted_at`, `withdrawn_at`, `source_job_id`, `source_session_id`, `policy_document_version`, `policy_document_hash`를 가진다. Job consent snapshot은 `snapshot_id`, `snapshot_hash`, selected song/section, reference/lyrics display flags, policy version을 함께 저장한다. Candidate data opt-in 철회는 operational audit과 deletion evidence 보관 의무까지 자동 삭제한다는 뜻이 아니다. 다만 future model-improvement dataset에는 포함하지 않는다.
 
@@ -621,23 +621,23 @@ Consent withdrawal effects:
 | `generated_preview` | 새 preview, 기존 generated preview playback, 새 signed playback URL, educator/expert preview access | generated preview |
 | `expert_review` | educator/expert review surface access | review visibility only. audit/evidence는 보관 |
 | `candidate_data_opt_in` | future model-improvement dataset inclusion | candidate dataset copy/label withdrawn marker |
-| `contact_for_followup` | follow-up/error/interview 발송 | contact ciphertext, contact hash, contact lookup index |
+| `contact_for_followup` | Later only: follow-up/error/interview 발송 | Later only: contact ciphertext, contact hash, contact lookup index |
 
 Voice-bearing artifact deletion은 철회 후 24시간 내 deletion job을 예약하고, 7일 내 완료를 목표로 한다. audit/deletion evidence와 irreversible aggregate metric은 raw audio나 playable preview 없이 최대 1년 보관할 수 있다.
 
-SNS, 메일 등 추후 연락을 위한 개인정보는 failure tag의 `other` 자유입력에 받지 않는다. 연락처는 별도 필드와 별도 동의로 수집한다. 표시 화면에서는 마스킹하고, 발송 등 필요한 목적에서는 권한 있는 backend/service만 복호화할 수 있도록 암호화 저장한다. 복호화 접근은 audit 대상이다.
+SNS, 메일 등 추후 연락을 위한 개인정보는 failure tag의 `other` 자유입력에 받지 않는다. 나중에 contact collection gate를 켤 경우에만 연락처를 별도 필드와 별도 동의로 수집한다. 표시 화면에서는 마스킹하고, 발송 등 필요한 목적에서는 권한 있는 backend/service만 복호화할 수 있도록 암호화 저장한다. 복호화 접근은 audit 대상이다.
 
-P0 contact collection gate:
+Future contact collection gate:
 
 - Runtime status: hidden/disabled by default. No contact UI, contact value storage, or sending is allowed in P0 unless this gate is explicitly enabled in a later decision.
 - Contact channels when later enabled: email, SNS account
 - Allowed purposes: follow-up, 오류 안내, 인터뷰 요청
 - Not allowed without separate consent: marketing, 광고성 메시지, 제3자 제공
 - Retention: 내부 운영 기간 동안 보관하고 내부 운영 종료 후 90일 이내 삭제한다.
-- Withdrawal: 사용자가 `contact_for_followup` 동의를 철회하면 발송을 즉시 중지하고, 연락처 암호문과 검색용 hash는 30일 이내 삭제한다.
+- Withdrawal when later enabled: 사용자가 `contact_for_followup` 동의를 철회하면 발송을 즉시 중지하고, 연락처 암호문과 검색용 hash는 30일 이내 삭제한다.
 - Evidence: 동의, 철회, 삭제 evidence는 raw contact value 없이 최대 1년 보관할 수 있다.
 - Signup/login email은 follow-up contact로 자동 재사용하지 않는다. 같은 이메일을 쓰더라도 별도 unchecked opt-in과 목적 고지가 필요하고, SNS 또는 다른 이메일은 별도 confirm이 필요하다.
-- Contact collection은 P0에서 gate와 data model만 정의하고 기본 disabled로 둔다. 연락처 UI는 숨기거나 disabled하며, P0 preview/rating flow는 연락처 수집 없이 진행한다.
+- Contact collection은 P0에서 disabled capability status만 정의하고 기본 disabled로 둔다. 연락처 UI, 연락처 값 저장, 발송, 복호화, export는 P0에서 제공하지 않으며, P0 preview/rating flow는 연락처 수집 없이 진행한다.
 
 ## Contact Data Encryption And Key Management Guide
 
@@ -1027,7 +1027,7 @@ P0 owner assignment: 별도 팀이 없으므로 개발자인 사용자가 deleti
 
 - `unlicensed_internal_risk_accepted`를 실제로 켜기 위한 risk acceptance record를 누가 작성/승인하고 어디에 저장할 것인가?
 - P0 내부 운영 기간 동안 second reviewer를 둘 수 있는가? 둘 수 없다면 break-glass raw/canonical audio access와 contact plaintext reveal은 disabled로 유지한다.
-- contact follow-up은 P0에서 gate와 data model만 남긴다. 실제 연락처 UI, 저장, 발송을 언제 어떤 owner/reviewer 체계로 켤 것인가는 수익화 또는 외부 beta 전 재결정한다.
+- contact follow-up은 P0에서 disabled capability status만 남긴다. 실제 연락처 UI, 값 저장, 발송, 복호화, export를 언제 어떤 owner/reviewer 체계로 켤 것인가는 수익화 또는 외부 beta 전 재결정한다.
 - 권리 evidence 없는 `Mist` 제한 노출을 내부 운영 종료 전 어느 시점에 `rights_pending`, `published`, 또는 `rights_blocked`로 재판정할 것인가?
 
 ## Recommended Next Skill

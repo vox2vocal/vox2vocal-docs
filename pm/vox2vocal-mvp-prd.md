@@ -1,6 +1,6 @@
 # Vox2Vocal MVP PRD Draft
 
-문서 버전: v0.11
+문서 버전: v0.12
 작성일: 2026-06-13
 상태: 초안
 작성 기준: `pm-context` + `prd-writer` skill 기준, `prd-reviewer` readiness pass 반영
@@ -350,7 +350,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 - Safety Rights: 사용자 본인 voice input만 허용, conversion audit log
 - 작업 상태 화면: queued, processing, preview_ready, completed, failed, failed_with_partial_artifacts, blocked
 - 결과 화면: 앱 내 self-voice preview 재생, 현재/목표 음정 비교, 1-5점 평가, 4점 미만 실패 원인 태그, 실패 사유
-- Contact follow-up: P0에서는 gate와 데이터 모델만 정의하고 기본 disabled로 둔다. 오류 안내, 후속 인터뷰, 내부 운영 follow-up 목적의 이메일/SNS 연락처 수집은 별도 opt-in, 암호화 저장, audit, contact collection gate를 통과한 뒤 Later decision으로 활성화한다.
+- Contact follow-up: P0에서는 disabled capability status만 정의한다. 오류 안내, 후속 인터뷰, 내부 운영 follow-up 목적의 이메일/SNS 연락처 UI, 값 저장, 발송, 복호화, export는 P0 범위에서 제외하고 Later decision으로 둔다.
 
 ### Out Of Scope
 
@@ -524,6 +524,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 ### FR-015 Retention And Data Handling
 
 - User vocal recordings, admin reference audio, generated previews, and analysis artifacts must be retained for at least 1 month during P0 internal operation unless a user/admin deletion request requires earlier deletion.
+- Failed-job raw audio follows the same 30-day default retention policy for P0 debugging unless consent withdrawal, deletion request, or rights/safety policy requires earlier deletion. It must still be excluded from 1-year retained datasets.
 - Raw audio must not be used as the 1-year retained dataset.
 - Non-audio analysis data, audit records, operational metadata, confidence scores, preview ratings, and failure reason tags may be retained for up to 1 year for debugging and evaluation.
 - Retained non-audio data must preserve source provenance and consent status.
@@ -594,15 +595,35 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 
 ## P0 Readiness Criteria
 
-- Build can start when the team registers Ken Kamikita - `Mist`, confirms the full section map, sets `intro` as `0:00-0:28`, and confirms required song package metadata.
-- Build can start when the canonical P0 job state owner and the app-facing job status contract are agreed.
-- Build can start when Safety Rights has a P0 policy for separated consent, first-login required consent reuse, job-level consent snapshots, blocked jobs, audit logging, and app-only playback.
-- Build can start when reference audio source/provenance, rights clearance status, usage status, retention period, and deletion owner are recorded and reviewable.
-- Build can start when reference pre-listen, lyrics display, and lyrics sync flags default to blocked and have explicit owner-controlled enablement rules.
-- Build can start when the in-app recorder, take review, fallback upload decision, and mic permission handling are agreed.
-- Build can start when self-voice preview evaluation uses a fixed primary question, for example: "이 preview가 내 목소리처럼 들린다" on a 1-5 scale, where 4 or higher counts as a successful response.
-- Build can start when raw audio retention, generated preview retention, audit retention, and deletion ownership are documented.
-- Build should not include provider automation as a P0 dependency unless licensing/API terms are already approved.
+Implementation can start when:
+
+- The P0 target is fixed as Ken Kamikita - `Mist`, `intro` section `0:00-0:28`, against the currently selected reference asset candidate.
+- The canonical P0 job state owner is `worker` `conversion-job-state`, and the app-facing job projection contract is documented.
+- Safety Rights has a P0 policy for separated consent, first-login required consent reuse, job-level consent snapshots, blocked jobs, audit logging, and app-only playback.
+- Reference pre-listen, lyrics display, and lyrics sync flags default to blocked and have explicit owner-controlled enablement rules.
+- The in-app recorder, take review, fallback upload decision, and mic permission handling are agreed.
+- Self-voice preview evaluation uses the fixed primary question: "이 preview가 내 목소리처럼 들린다" on a 1-5 scale, where 4 or higher counts as a successful response only after metric-eligible playback.
+- Raw audio retention, generated preview retention, audit retention, and deletion ownership are documented.
+- Provider automation is not a P0 dependency unless licensing/API terms are already approved.
+
+P0 internal launch gate:
+
+- The actual registered `Mist` reference asset checksum and duration must be recorded. If it differs from the asset used to define the section map, `intro 0:00-0:28` must be re-reviewed before learner exposure.
+- Reference audio source/provenance, rights clearance status, usage status, retention period, deletion owner, and risk acceptance record must be stored in the DB source of truth before learner selection is enabled.
+- The rights/risk record must identify the temporary P0 approver, evidence location, allowed users/groups, allowed section, prohibited uses, kill-switch owner, and re-review deadline.
+- If the above rights/risk evidence is missing, the package must remain `rights_blocked` or `rights_pending` and cannot be selected by learners.
+- Contact follow-up must remain hidden/disabled. P0 may keep a disabled capability flag, but must not collect, store, or send contact values.
+
+P0 final job decision policy:
+
+| Condition | User-facing terminal state | Rating allowed | Metric effect |
+| --- | --- | --- | --- |
+| Metric-eligible `partial_real` or `real_synthesis` preview exists, lineage is verified, section-limited playback is allowed, and required reports are present or warning-only | `completed` | Yes, after `preview_played=true` | Rating determines self-voice success |
+| Preview exists and is playable, but non-critical report generation failed | `failed_with_partial_artifacts` | Yes, after `preview_played=true`; job completion success does not count | Preview rating can be analyzed separately |
+| Pitch/report artifacts exist but no playable self-voice preview exists | `failed_with_partial_artifacts` | No | Non-success for self-voice preview |
+| Critical engine failure, no useful user-facing artifact, or timeout without preview | `failed` | No | Non-success |
+| Consent, rights, deletion, or audit gate blocks the job or artifact | `blocked` or deletion-specific state | No | Excluded from success and counted as blocked |
+| Low confidence, rights ambiguity, disputed target notes, or suspicious artifact requires human review | `needs_review` | No until review resolves playback eligibility | Pending, not success |
 
 ## Success Metrics
 
@@ -676,8 +697,8 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 
 ## Dependencies
 
-- App: song selection, section selection, recorder/take review, fallback upload, job status screen, section result screen, app-only result playback UI, preview rating UI, failure reason tagging UI, contact follow-up gate UI when later enabled, token/session integration
-- BFF: GraphQL mutations/queries for signup, login, admin song package registration, create project/job, upload initiation, job status, result retrieval, contact follow-up gate/preference endpoints disabled by default
+- App: song selection, section selection, recorder/take review, fallback upload, job status screen, section result screen, app-only result playback UI, preview rating UI, failure reason tagging UI, token/session integration. Contact follow-up UI is out of P0 and must remain hidden/disabled.
+- BFF: GraphQL mutations/queries for signup, login, admin song package registration, create project/job, upload initiation, job status, result retrieval, and disabled contact follow-up capability status. Contact preference mutation/write endpoints are out of P0 unless a later gate explicitly enables them.
 - API Gateway: orchestration APIs for auth, song package, project/job, asset, conversion, and user context
 - Job State Owner: canonical P0 job state, stage transition, retry, final decision, retention deadline, app-facing read model
 - User Service: account, auth, user identity, role/status
@@ -685,7 +706,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 - Queue/Eventing: NATS JetStream is a required P0 runtime dependency for audio/engine pipeline events. Redis/BullMQ may be used for app-facing async jobs.
 - Engines: audio ingest, voice pitch, target pitch mapping, self-voice section preview, preview evaluation, safety rights
 - Infra: PostgreSQL, Redis, NATS, local or object storage, Kubernetes deployments, structured logs
-- Policy: terms, privacy policy, first-login required consent, job-level consent snapshot, own-voice consent, expert review consent, candidate data opt-in, contact follow-up gate policy, reference audio policy, lyrics display policy, audit retention, disallowed voice-use policy
+- Policy: terms, privacy policy, first-login required consent, job-level consent snapshot, own-voice consent, expert review consent, candidate data opt-in, contact follow-up disabled-gate policy, reference audio policy, lyrics display policy, audit retention, disallowed voice-use policy
 - Music domain inputs: target song metadata, section map, provider/source metadata, lyrics handling, BPM/key source, reference audio handling, reference pre-listen rights flags, lyrics display/sync flags, target note extraction policy
 - External data providers: YouTube/Spotify/music metadata domains, lyrics providers, and any licensed source required for metadata or lyric retrieval
 - Music education expertise: section selection, pitch feedback interpretation, low-confidence cases, and learner-facing explanation copy
@@ -694,7 +715,6 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 
 ### Product And User
 
-- `Mist` section map의 timestamp를 현재 v0.10 기준으로 확정할 것인가, 아니면 reference audio asset 검수 후 조정할 것인가?
 - 학습자용 화면과 교육자용 화면을 같은 결과 화면으로 시작할 것인가, 역할별로 다르게 보여줄 것인가?
 - 관리자 song package의 P0 필수 metadata 외에 provider id, album/artwork 등을 언제부터 요구할 것인가?
 
@@ -710,7 +730,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 
 - "이 preview가 내 목소리처럼 들린다" 평가 문항의 visual placement와 microcopy를 결과 화면에서 어떻게 다듬을 것인가?
 - P0 confirmed failure tag 목록을 결과 화면에서 어떤 문구로 보여주고, `other` 자유입력의 개인정보/민감정보 유입을 어떻게 제한할 것인가?
-- 결과가 나쁘더라도 job은 `completed`로 볼 것인가, quality threshold 미달이면 `failed` 또는 `needs_review`로 볼 것인가?
+- `needs_review`로 들어간 low-confidence 또는 disputed target note 결과를 누가 어느 SLA로 해소할 것인가?
 
 ### Technical Scope
 
@@ -719,7 +739,6 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 
 ### Launch
 
-- 실패한 작업의 원본 오디오는 보관할 것인가, 즉시 삭제할 것인가?
 - provider 자동화가 P0에서 제외될 경우, 관리자 수동 등록 운영 비용을 누가 감당할 것인가?
 
 ## Assumptions

@@ -17,7 +17,7 @@
 - NATS JetStream은 P0 engine pipeline 필수 런타임 의존성으로 확정했다.
 - `preview_played=true`는 서버가 80% unique timeline coverage로 계산한다. `Mist intro` 28초 기준 최소 22.4초의 distinct playback이 필요하다.
 - Rating은 `preview_played=true` 이후에만 가능하고, 4점 미만은 failure tag가 필수다. 재생 문제는 failure tag가 아니라 `playback_problem_reported` 이벤트로 분리한다.
-- Contact follow-up은 gate와 data model만 남기고 기본 hidden/disabled로 둔다. 실제 연락처 UI, 저장, 발송은 수익화 또는 외부 beta 전 재결정한다.
+- Contact follow-up은 P0에서 disabled capability status만 남긴다. 실제 연락처 UI, 값 저장, 발송, 복호화, export는 수익화 또는 외부 beta 전 재결정한다.
 - 남은 주요 blocker는 실제 rights/risk acceptance record 작성, 권리 evidence 없는 `Mist`의 내부 운영 종료 전 재판정, second reviewer 확보 여부, 외부 beta/수익화 전 정식 음원 권리 확보 방식이다.
 
 아래 리뷰 원문은 2026-06-13 기준 진단이며, 현재 구현/기획 판단에는 위 반영 상태를 우선 적용한다.
