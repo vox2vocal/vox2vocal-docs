@@ -19,9 +19,10 @@ vox2vocal-user-service
 engine-voice-pitch
 vox2vocal-infra
 vox2vocal-bff-server
+vox2vocal-agent-skills
 ```
 
-각 repository의 `main` history는 2026-06-13에 한 번 rewrite되어 author, committer, commit message 정책을 모두 만족하도록 정리되었다. 이후에는 hook, CI, GitHub ruleset으로 신규 위반 커밋을 차단한다.
+기존 repository의 `main` history는 2026-06-13에 한 번 rewrite되어 author, committer, commit message 정책을 모두 만족하도록 정리되었다. 이후 추가되는 repository는 초기 커밋부터 같은 hook, CI, GitHub ruleset으로 신규 위반 커밋을 차단한다.
 
 ## Required Identity
 

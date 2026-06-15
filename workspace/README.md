@@ -22,14 +22,15 @@ worker
 
 ## 프로젝트
 
-| 프로젝트       | 역할                     | 주요 기술                                       |
-| -------------- | ------------------------ | ----------------------------------------------- |
-| `app`          | Expo RN App/Web          | Expo, React Native Web, Tamagui                 |
-| `bff-server`   | GraphQL BFF              | NestJS, GraphQL, Apollo, gRPC client            |
-| `api-gateway`  | 내부 API Gateway         | NestJS, gRPC server/client                      |
-| `user-service` | 사용자 도메인 서비스     | NestJS, gRPC, Prisma, PostgreSQL                |
-| `worker`       | 비동기 작업 서버         | NestJS, BullMQ, Redis                           |
-| `infra`        | minikube/Kubernetes 구성 | Deployment, Service, Ingress, PostgreSQL, Redis |
+| 프로젝트                  | 역할                     | 주요 기술                                       |
+| ------------------------- | ------------------------ | ----------------------------------------------- |
+| `app`                     | Expo RN App/Web          | Expo, React Native Web, Tamagui                 |
+| `bff-server`              | GraphQL BFF              | NestJS, GraphQL, Apollo, gRPC client            |
+| `api-gateway`             | 내부 API Gateway         | NestJS, gRPC server/client                      |
+| `user-service`            | 사용자 도메인 서비스     | NestJS, gRPC, Prisma, PostgreSQL                |
+| `worker`                  | 비동기 작업 서버         | NestJS, BullMQ, Redis                           |
+| `infra`                   | minikube/Kubernetes 구성 | Deployment, Service, Ingress, PostgreSQL, Redis |
+| `vox2vocal-agent-skills`  | PM/TRD Codex skill 관리  | Codex Skills, PRD/TRD workflow, validation      |
 
 ## 프론트엔드 디자인 시스템
 
@@ -82,3 +83,13 @@ docs/root/AGENT.md
 ```
 
 workspace 루트의 `AGENT.md`를 갱신하면 `docs/root/AGENT.md`도 함께 갱신한다.
+
+## Agent Skills
+
+PM/TRD workflow를 위한 Codex skill은 `vox2vocal-agent-skills` repository에서 관리한다.
+
+주요 인덱스:
+
+- `vox2vocal-agent-skills/README.md`: skill 목록과 저장소 구조
+- `vox2vocal-agent-skills/AGENT.md`: skill repository 작업 규칙
+- `vox2vocal-agent-skills/prd-trd-skill-flow-guide.md`: PM-to-TRD skill 사용 순서

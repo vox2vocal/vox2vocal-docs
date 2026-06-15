@@ -15,6 +15,7 @@
 | `worker` | 비동기 작업 서버 | NestJS 11, BullMQ, Redis, ConfigModule |
 | `infra` | 로컬/클러스터 인프라 | Kubernetes, minikube, PostgreSQL, Redis, Ingress |
 | `docs` | 공통 문서 | 테스트, Prisma, 인프라, 워크스페이스, 엔진 아키텍처 가이드 |
+| `vox2vocal-agent-skills` | Codex Agent Skill 저장소 | PM/TRD skills, PRD-to-TRD workflow, skill validation |
 | `engine-audio-ingest` | 오디오 입력/전처리 엔진 | 오디오 표준화, 무음 탐지, 구간 분할 |
 | `engine-voice-analysis` | 음성 분석 엔진 | 에너지, 발화 속도, 억양, 휴지 구간 분석 |
 | `engine-voice-pitch` | 피치 분석 엔진 | F0 추정, pitch contour 정제, MIDI note 변환 |
@@ -62,6 +63,9 @@ engine-audio-ingest
 | [Workspace README](vox2vocal-docs/workspace/README.md) | workspace 구조, 서비스 역할, root AGENT 원본 위치를 확인할 때 |
 | [Git Policy](vox2vocal-docs/workspace/git-policy.md) | Git identity, commit convention, hook, CI, ruleset, force push 정책을 확인할 때 |
 | [Root Agent Source](vox2vocal-docs/root/AGENT.md) | 루트 `AGENT.md` 원본을 docs repo 기준으로 갱신할 때 |
+| [Agent Skills README](vox2vocal-agent-skills/README.md) | PM/TRD Codex skill 목록과 저장소 구조를 확인할 때 |
+| [Agent Skills Flow Guide](vox2vocal-agent-skills/prd-trd-skill-flow-guide.md) | PM-to-TRD skill 사용 순서와 prompt 흐름을 확인할 때 |
+| [Agent Skills Agent](vox2vocal-agent-skills/AGENT.md) | skill repo 작업 규칙, validation, commit 기준을 확인할 때 |
 
 ### 제품/기획 문서
 
@@ -182,6 +186,14 @@ engine-audio-ingest
 - [vox2vocal-app/README.md](vox2vocal-app/README.md)
 
 Expo는 버전 변화가 잦으므로 `vox2vocal-app/AGENTS.md`의 Expo 문서 확인 지침을 우선한다.
+
+### Agent Skill 작업
+
+PM/TRD Codex skill을 추가, 수정, 검증할 때는 아래 문서를 먼저 읽는다.
+
+- [vox2vocal-agent-skills/AGENT.md](vox2vocal-agent-skills/AGENT.md)
+- [vox2vocal-agent-skills/README.md](vox2vocal-agent-skills/README.md)
+- [vox2vocal-agent-skills/prd-trd-skill-flow-guide.md](vox2vocal-agent-skills/prd-trd-skill-flow-guide.md)
 
 ### 엔진 작업
 
