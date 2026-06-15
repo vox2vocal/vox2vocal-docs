@@ -349,6 +349,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 - Safety Rights: 사용자 본인 voice input만 허용, conversion audit log
 - 작업 상태 화면: queued, processing, preview_ready, completed, failed, failed_with_partial_artifacts, blocked
 - 결과 화면: 앱 내 self-voice preview 재생, 현재/목표 음정 비교, 1-5점 평가, 4점 미만 실패 원인 태그, 실패 사유
+- Contact follow-up: 오류 안내, 후속 인터뷰, 내부 운영 follow-up 목적의 이메일/SNS 연락처 수집을 P0에 포함한다. 단, 별도 opt-in, 암호화 저장, audit, contact collection gate를 통과한 경우에만 활성화하며 core preview/rating flow의 blocking dependency로 두지 않는다.
 
 ### Out Of Scope
 
@@ -660,8 +661,8 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 
 ## Dependencies
 
-- App: song selection, section selection, recorder/take review, fallback upload, job status screen, section result screen, app-only result playback UI, preview rating UI, failure reason tagging UI, token/session integration
-- BFF: GraphQL mutations/queries for signup, login, admin song package registration, create project/job, upload initiation, job status, result retrieval
+- App: song selection, section selection, recorder/take review, fallback upload, job status screen, section result screen, app-only result playback UI, preview rating UI, failure reason tagging UI, contact follow-up opt-in UI, token/session integration
+- BFF: GraphQL mutations/queries for signup, login, admin song package registration, create project/job, upload initiation, job status, result retrieval, contact follow-up preference
 - API Gateway: orchestration APIs for auth, song package, project/job, asset, conversion, and user context
 - Job State Owner: canonical P0 job state, stage transition, retry, final decision, retention deadline, app-facing read model
 - User Service: account, auth, user identity, role/status
@@ -669,7 +670,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 - Queue/Eventing: NATS JetStream for audio/engine pipeline events, Redis/BullMQ if used for app-facing async jobs
 - Engines: audio ingest, voice pitch, target pitch mapping, self-voice section preview, preview evaluation, safety rights
 - Infra: PostgreSQL, Redis, NATS, local or object storage, Kubernetes deployments, structured logs
-- Policy: terms, privacy policy, first-login required consent, job-level consent snapshot, own-voice consent, expert review consent, candidate data opt-in, reference audio policy, lyrics display policy, audit retention, disallowed voice-use policy
+- Policy: terms, privacy policy, first-login required consent, job-level consent snapshot, own-voice consent, expert review consent, candidate data opt-in, contact follow-up opt-in, reference audio policy, lyrics display policy, audit retention, disallowed voice-use policy
 - Music domain inputs: target song metadata, section map, provider/source metadata, lyrics handling, BPM/key source, reference audio handling, reference pre-listen rights flags, lyrics display/sync flags, target note extraction policy
 - External data providers: YouTube/Spotify/music metadata domains, lyrics providers, and any licensed source required for metadata or lyric retrieval
 - Music education expertise: section selection, pitch feedback interpretation, low-confidence cases, and learner-facing explanation copy

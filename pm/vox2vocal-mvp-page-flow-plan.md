@@ -529,7 +529,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 - Playback problem: rating 없이 `playback_problem_reported` event를 제출한다.
 - Consent withdrawal: generated preview playback, expert review access, new signed playback URL을 즉시 차단하고 deletion job을 예약한다.
 - Deletion failed: playback을 먼저 차단하고 Governance Evidence에서 owner review를 생성한다.
-- Contact collection gate unavailable: contact follow-up UI를 숨기거나 disabled하고 core preview/rating flow는 계속 진행한다.
+- Contact collection gate unavailable: P0 포함 기능이지만 contact follow-up UI를 숨기거나 disabled하고 core preview/rating flow는 계속 진행한다.
 
 ## Page x Feature Matrix
 
@@ -562,7 +562,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 - 실패/부분 성공 상태에서 preview 가능 여부가 섞이면 metric이 흐려진다. `preview_available`, `playback_blocked`, `pipeline_mode`를 화면과 analytics에서 분리해야 한다.
 - `playback_problem_reported`를 낮은 rating과 섞으면 self-voice 품질 metric이 오염된다.
 - consent 철회와 deletion request의 차이가 불분명하면 신뢰가 무너질 수 있다. 철회 영향과 삭제 일정은 명확해야 한다.
-- contact follow-up은 optional internal ops다. core preview flow의 필수 단계처럼 보여서는 안 된다.
+- contact follow-up은 P0 포함 기능이지만 optional internal ops다. core preview flow의 필수 단계처럼 보여서는 안 된다.
 - educator/expert review 화면에서 raw audio 접근이 가능해 보이면 privacy expectation이 깨진다.
 - admin 화면이 full operations console처럼 커지면 P0 scope creep이 발생한다.
 
@@ -570,7 +570,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 
 - `unlicensed_internal_risk_accepted`를 실제로 켜기 위한 risk acceptance record의 source of truth는 PM 문서, DB, ticket 중 어디인가?
 - P0 내부 운영 기간 동안 second reviewer를 둘 수 있는가? 없으면 Governance Evidence는 break-glass disabled 상태를 어떻게 보여줄 것인가?
-- `contact_for_followup`은 P0 화면에서 구현할 것인가, 아니면 contact collection gate 준비 전까지 운영 외부 프로세스로 둘 것인가?
+- `contact_for_followup` UI와 backend 저장은 P0에 포함한다. contact collection gate가 준비되지 않은 환경에서 disabled로 둘지, gate 충족을 먼저 구현할지 결정이 필요하다.
 - 권리 evidence 없는 `Mist` 제한 노출은 내부 운영 종료 전 어느 시점에 `rights_pending`, `published`, 또는 `rights_blocked`로 재판정할 것인가?
 - mobile app과 web에서 admin/review/governance surface를 모두 제공할 것인가, 아니면 learner app은 mobile-first, internal surface는 web-first로 제한할 것인가?
 - reference pre-listen과 lyrics display flags의 source of truth는 admin rights/risk record, DB package field, ticket 중 어디인가?

@@ -461,7 +461,7 @@ P0는 `Mist` 전체 section map을 song package로 보관하되, 기본 target�
 | 녹음 화면 권리 플래그 미정 | Reference pre-listen, lyrics display, lyrics sync는 기본 차단하고, 명시적 권리 플래그와 scope가 있을 때만 section-limited로 노출한다. 활성 녹음 중 reference 동시 재생은 P0에서 제외한다. | 실제 rights/risk record 작성 |
 | Mock/partial-real/real synthesis 기준 미확정 | mock은 UI/flow 검증 전용이며 P0 self-voice success로 계산하지 않는다. `partial_real`은 real submitted voice input lineage와 app-playable section-limited preview가 machine-checkable할 때만 P0 success 후보로 인정한다. | 없음 |
 | Admin/reviewer path 미확정 | 제한된 admin 화면과 별도 educator/expert review 화면을 P0에 포함한다. | 화면 상세 flow는 page-flow-planner에서 확정 |
-| 연락 목적 개인정보 처리 | `other` 자유입력은 feedback 텍스트로만 쓰고, SNS/메일 발송용 연락처는 별도 필드와 별도 동의로 수집한다. 단, contact collection gate를 통과하지 못하면 P0 core flow에서는 연락처 수집 없이 진행한다. | 없음 |
+| 연락 목적 개인정보 처리 | P0에 contact follow-up 기능을 포함한다. `other` 자유입력은 feedback 텍스트로만 쓰고, SNS/메일 발송용 연락처는 별도 필드와 별도 동의로 수집한다. 단, contact collection gate를 통과하지 못하면 P0 core flow에서는 연락처 수집 없이 진행한다. | 없음 |
 | owner 팀 부재 | P0에서는 개발자인 사용자가 deletion owner, policy owner, platform/storage owner를 겸임한다. 단, 자기 승인 break-glass와 contact plaintext reveal은 허용하지 않는다. | second reviewer 확보 여부 |
 | 권리 미확보 `Mist` learner 노출 | `unlicensed_internal_risk`는 learner 노출 금지 상태로 두고, risk acceptance가 기록된 `unlicensed_internal_risk_accepted`에서만 internal allowlist에 제한 노출한다. | 실제 risk acceptance record 작성 |
 | Rating timing 모호함 | `preview_played=true` 이후에만 `rating_required=true`가 된다. `completed`는 report 준비 상태이며 rating 완료 상태가 아니다. | 없음 |
@@ -630,7 +630,7 @@ P0 contact collection:
 - Withdrawal: 사용자가 `contact_for_followup` 동의를 철회하면 발송을 즉시 중지하고, 연락처 암호문과 검색용 hash는 30일 이내 삭제한다.
 - Evidence: 동의, 철회, 삭제 evidence는 raw contact value 없이 최대 1년 보관할 수 있다.
 - Signup/login email은 follow-up contact로 자동 재사용하지 않는다. 같은 이메일을 쓰더라도 별도 unchecked opt-in과 목적 고지가 필요하고, SNS 또는 다른 이메일은 별도 confirm이 필요하다.
-- Contact collection은 P0 core job flow의 blocking dependency가 아니라 optional internal ops다. contact collection gate를 통과하지 못하면 P0 preview/rating flow는 연락처 수집 없이 진행한다.
+- Contact collection은 P0 포함 기능이지만 core job flow의 blocking dependency가 아니다. contact collection gate를 통과하지 못하면 연락처 UI는 숨기거나 disabled하고, P0 preview/rating flow는 연락처 수집 없이 진행한다.
 
 ## Contact Data Encryption And Key Management Guide
 
@@ -1009,7 +1009,7 @@ P0 owner assignment: 별도 팀이 없으므로 개발자인 사용자가 deleti
 
 - `unlicensed_internal_risk_accepted`를 실제로 켜기 위한 risk acceptance record를 누가 작성/승인하고 어디에 저장할 것인가?
 - P0 내부 운영 기간 동안 second reviewer를 둘 수 있는가? 둘 수 없다면 break-glass raw/canonical audio access와 contact plaintext reveal은 disabled로 유지한다.
-- `contact_for_followup`을 P0에서 실제 구현할 것인가, 아니면 KMS/Vault/OS keychain 기반 contact collection gate가 준비될 때까지 수동/외부 운영으로 둘 것인가?
+- `contact_for_followup` UI와 backend 저장은 P0에 포함한다. 다만 KMS/Vault/OS keychain 기반 contact collection gate가 준비되지 않으면 기능을 disabled로 둘 것인가, 아니면 cloud KMS 또는 OS keychain 중 어떤 방식으로 gate를 먼저 충족할 것인가?
 - 권리 evidence 없는 `Mist` 제한 노출을 내부 운영 종료 전 어느 시점에 `rights_pending`, `published`, 또는 `rights_blocked`로 재판정할 것인가?
 
 ## Recommended Next Skill
