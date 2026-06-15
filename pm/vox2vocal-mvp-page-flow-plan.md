@@ -148,8 +148,8 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
   - accepted MIME and extension
   - `P0_MAX_UPLOAD_BYTES`
   - selected song package id, target section id
-  - consent snapshot reference
-  - rights flag snapshot reference
+  - server-computed consent snapshot id/hash after submit
+  - server-computed rights/risk snapshot id/hash after submit
   - idempotency key
 - Key components:
   - section guide header
@@ -258,8 +258,10 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 - Required data:
   - preview artifact id, signed playback URL eligibility
   - `preview_available`, `preview_played`, `playback_blocked`
+  - `playback_session_id`, playback progress events, unique timeline coverage ratio
   - `section_id=intro`, section label and timestamp
   - pipeline mode: `partial_real` or `real_synthesis`
+  - `mock_fixture_used=false`
   - pitch report, target/current pitch summary, low confidence ranges
   - quality summary: clipping, loudness, artifact candidates
   - rating prompt version and prior rating status
@@ -268,7 +270,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
   - app-only audio player
   - section badge
   - preview state and no-download/share notice
-  - rating control after `preview_played`
+  - rating control after `preview_played=true`
   - failure tag selector for 1-3점
   - pitch feedback panel
   - quality warning panel
@@ -284,6 +286,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
   - report unavailable
   - rating submission failure
   - artifact deleted or blocked
+  - preview playback did not reach 80% unique timeline coverage
 - Permission state:
   - learner는 본인 preview만 재생
   - withdrawn consent, rights blocked, deletion running/failed, audit failure 상태에서는 새 playback URL 발급 차단
@@ -295,6 +298,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
   - To: Processing Status when report still running
 - Success signal:
   - distinct participating learner 10명 중 5명 이상이 첫 metric-eligible played preview에서 4점 이상
+  - `preview_played=true`는 non-mock `partial_real` 또는 `real_synthesis` preview의 80% unique timeline coverage 기준을 만족해야 함
   - 4점 미만 rating의 100%가 failure tag 또는 `other` 포함
   - pitch-only success가 completed job으로 잘못 표시되지 않음
 
@@ -302,7 +306,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 
 - Purpose: 사용자가 job 단위 consent, retention, deletion status를 확인하고 철회/삭제 요청을 할 수 있게 한다.
 - Primary action: 본인 데이터 삭제를 요청하거나 consent를 철회한다.
-- Secondary actions: retention notice 확인, contact follow-up 동의 철회, candidate data opt-in 철회, job 목록 확인.
+- Secondary actions: retention notice 확인, candidate data opt-in 철회, job 목록 확인. Contact follow-up 동의/철회는 gate가 later enabled일 때만 노출한다.
 - Required data:
   - user id
   - job ids and artifact ids
@@ -369,7 +373,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
   - `policy_or_rights_owner`, `platform_storage_owner`는 login role이 아니라 owner metadata
   - admin publish/block action은 audit write success 없이는 fail closed
 - Navigation:
-  - From: admin entry after MFA
+  - From: role-gated internal admin entry. MFA/step-up is Later for high-risk actions unless already implemented.
   - To: Governance Evidence for audit/deletion records
   - To: Review Queue only if user also has review role
 - Success signal:
@@ -405,7 +409,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
   - raw audio 직접 접근/다운로드는 기본 제공하지 않음
   - expert review consent 철회 시 queue에서 숨김
 - Navigation:
-  - From: reviewer entry after MFA
+  - From: role-gated reviewer entry. MFA/step-up is Later for high-risk actions unless already implemented.
   - To: Review Detail / Internal Reviewer Mode
   - Back To: reviewer home
 - Success signal:
@@ -501,10 +505,10 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 7. 사용자는 recorder 화면에서 section guide를 확인한다. 권리 플래그가 허용하면 recording 전 section pre-listen 또는 permitted lyric cue를 볼 수 있다.
 8. 사용자는 본인 목소리 take를 녹음하고, replay 후 retake 또는 submit을 선택한다.
 9. 앱은 recorder take 또는 fallback upload를 presigned object storage path로 전송한다.
-10. 사용자가 처리 시작을 누르면 `completeAudioUpload`가 consent snapshot, rights flag snapshot, audit, object HEAD를 검증하고 job을 생성한다.
+10. 사용자가 처리 시작을 누르면 `completeAudioUpload`가 object HEAD를 검증하고, 서버가 consent snapshot과 rights/risk snapshot을 직접 계산한 뒤 audit allow decision과 함께 job을 생성한다.
 11. Processing Status는 canonical job state와 output flags를 표시한다.
 12. `preview_ready`가 되면 사용자는 Result page에서 preview를 재생한다.
-13. 동일 preview artifact가 의미 있게 재생되면 `preview_played=true`가 되고 rating UI가 열린다.
+13. 앱은 foreground, unmuted playback 중 1초마다 progress event를 보내고, 서버가 동일 preview artifact의 80% unique timeline coverage 기준을 만족한다고 계산하면 `preview_played=true`가 되며 rating UI가 열린다.
 14. 사용자는 "이 preview가 내 목소리처럼 들린다"를 1-5점으로 평가한다.
 15. 1-3점이면 failure tag 또는 `other`를 제출한다.
 16. 사용자는 pitch feedback과 quality summary를 확인하고, 필요 시 deletion/consent settings로 이동한다.
@@ -529,7 +533,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 - Playback problem: rating 없이 `playback_problem_reported` event를 제출한다.
 - Consent withdrawal: generated preview playback, expert review access, new signed playback URL을 즉시 차단하고 deletion job을 예약한다.
 - Deletion failed: playback을 먼저 차단하고 Governance Evidence에서 owner review를 생성한다.
-- Contact collection gate unavailable: P0 포함 기능이지만 contact follow-up UI를 숨기거나 disabled하고 core preview/rating flow는 계속 진행한다.
+- Contact collection gate unavailable: P0에서는 contact follow-up UI를 기본 숨김/disabled로 두고 core preview/rating flow는 계속 진행한다.
 
 ## Page x Feature Matrix
 
@@ -562,7 +566,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 - 실패/부분 성공 상태에서 preview 가능 여부가 섞이면 metric이 흐려진다. `preview_available`, `playback_blocked`, `pipeline_mode`를 화면과 analytics에서 분리해야 한다.
 - `playback_problem_reported`를 낮은 rating과 섞으면 self-voice 품질 metric이 오염된다.
 - consent 철회와 deletion request의 차이가 불분명하면 신뢰가 무너질 수 있다. 철회 영향과 삭제 일정은 명확해야 한다.
-- contact follow-up은 P0 포함 기능이지만 optional internal ops다. core preview flow의 필수 단계처럼 보여서는 안 된다.
+- contact follow-up은 P0에서 gate만 남기고 기본 hidden/disabled다. core preview flow, rating, failure tag 제출의 필수 단계처럼 보여서는 안 된다.
 - educator/expert review 화면에서 raw audio 접근이 가능해 보이면 privacy expectation이 깨진다.
 - admin 화면이 full operations console처럼 커지면 P0 scope creep이 발생한다.
 
@@ -570,7 +574,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 
 - `unlicensed_internal_risk_accepted`를 실제로 켜기 위한 risk acceptance record의 source of truth는 PM 문서, DB, ticket 중 어디인가?
 - P0 내부 운영 기간 동안 second reviewer를 둘 수 있는가? 없으면 Governance Evidence는 break-glass disabled 상태를 어떻게 보여줄 것인가?
-- `contact_for_followup` UI와 backend 저장은 P0에 포함한다. contact collection gate가 준비되지 않은 환경에서 disabled로 둘지, gate 충족을 먼저 구현할지 결정이 필요하다.
+- contact follow-up은 P0에서 gate와 disabled state만 정의한다. 실제 UI, backend 저장, 발송은 수익화 또는 외부 beta 전 권한/암호화/감사 owner를 갖춘 뒤 재결정한다.
 - 권리 evidence 없는 `Mist` 제한 노출은 내부 운영 종료 전 어느 시점에 `rights_pending`, `published`, 또는 `rights_blocked`로 재판정할 것인가?
 - mobile app과 web에서 admin/review/governance surface를 모두 제공할 것인가, 아니면 learner app은 mobile-first, internal surface는 web-first로 제한할 것인가?
 - reference pre-listen과 lyrics display flags의 source of truth는 admin rights/risk record, DB package field, ticket 중 어디인가?

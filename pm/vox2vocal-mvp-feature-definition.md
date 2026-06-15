@@ -364,7 +364,13 @@ P0는 `Mist` 전체 section map을 song package로 보관하되, 기본 target�
 - Business rules:
   - primary rating question은 "이 preview가 내 목소리처럼 들린다"다.
   - 4점 이상만 primary self-voice metric success로 계산한다.
-  - `preview_played`는 동일 `preview_artifact_id`에 대해 인증된 playback이 오류 없이 preview 길이의 70% 또는 15초 중 더 짧은 기준에 도달한 이벤트로 정의한다.
+  - `preview_played`는 동일 `preview_artifact_id`에 대해 인증된 playback session이 오류 없이 preview 고유 timeline의 80% 이상에 도달한 이벤트로 정의한다.
+  - P0 `Mist intro`는 28초이므로 `preview_played=true` 기준은 최소 22.4초 이상의 distinct timeline coverage다.
+  - 같은 3초 구간을 반복 재생한 시간은 `unique_timeline_coverage`로 중복 계산하지 않는다.
+  - 앱은 foreground, unmuted playback 중 `playback_progress`를 1초마다 전송하고 pause, seek, end, background, mute, error 시 progress를 flush한다.
+  - 모든 playback event는 `event_id`, `schema_version`, `occurred_at`, session 내 단조 증가 `client_sequence`를 포함한다.
+  - 서버는 `playback_session_id`, `artifact_id`, `event_id`, `client_sequence`, played range를 기준으로 duplicate/out-of-order event를 idempotent하게 merge한다.
+  - `preview_played=true` requires `preview_artifact_id`, `pipeline_mode` in `partial_real` or `real_synthesis`, `mock_fixture_used=false`, `section_limited=true`, `playback_blocked=false`, `playback_session_id`, signed playback URL audit success, app foreground playback start, `player_muted=false`, no severe playback error, and `unique_timeline_coverage_ratio >= 0.8`.
   - `rating_required=true`는 `preview_available=true`, `playback_blocked=false`, `preview_played=true`, 해당 artifact에 rating이 없을 때만 켠다.
   - `failure_tags_required=true`는 rating 1-3점 제출 직후 켠다. 4-5점은 failure tag를 강제하지 않는다.
   - 4점 미만 failure tag taxonomy v0.1은 `not_my_voice`, `not_song_like`, `pitch_wrong`, `timing_wrong`, `robotic_or_artifact`, `noise_or_clipping`, `too_short_or_incomplete`, `other`로 P0 confirmed한다. 재생 실패는 rating/failure tag가 아니라 `playback_problem_reported` event로 분리한다. 내부 운영 후 taxonomy version을 올려 조정할 수 있다.
@@ -457,11 +463,11 @@ P0는 `Mist` 전체 section map을 song package로 보관하되, 기본 target�
 | Failure tag 목록이 질문과 충돌 | failure tag taxonomy v0.1은 P0 confirmed로 둔다. 내부 운영 후 versioning으로 조정한다. | 없음 |
 | BPM/key correction 범위가 모호함 | P0 기본값은 admin-only 수정으로 두되, P0 내부 운영에서는 allowlist 대상 학습자에게 feature flag로 learner correction controls를 켠다. 수정은 `completeAudioUpload` 전까지만 가능하고 job에는 snapshot을 저장한다. | 없음 |
 | Job state owner 미확정 | P0 canonical owner는 `worker` repo의 `conversion-job-state` bounded module로 둔다. | 실제 구현 owner 팀/담당자 |
-| Recorder/upload storage 계약 미확정 | P0는 app recorder take와 fallback file을 모두 presigned URL/object storage 경로로 전송한다. `completeAudioUpload`가 job 생성 커밋 boundary다. Upload TTL은 15분, playback TTL은 5분으로 시작한다. | 없음 |
+| Recorder/upload storage 계약 미확정 | P0는 app recorder take와 fallback file을 모두 presigned URL/object storage 경로로 전송한다. `completeAudioUpload`가 job 생성 커밋 boundary다. 서버가 consent/rights snapshot을 직접 계산한다. Upload TTL은 15분, playback TTL은 5분으로 시작한다. | 없음 |
 | 녹음 화면 권리 플래그 미정 | Reference pre-listen, lyrics display, lyrics sync는 기본 차단하고, 명시적 권리 플래그와 scope가 있을 때만 section-limited로 노출한다. 활성 녹음 중 reference 동시 재생은 P0에서 제외한다. | 실제 rights/risk record 작성 |
 | Mock/partial-real/real synthesis 기준 미확정 | mock은 UI/flow 검증 전용이며 P0 self-voice success로 계산하지 않는다. `partial_real`은 real submitted voice input lineage와 app-playable section-limited preview가 machine-checkable할 때만 P0 success 후보로 인정한다. | 없음 |
 | Admin/reviewer path 미확정 | 제한된 admin 화면과 별도 educator/expert review 화면을 P0에 포함한다. | 화면 상세 flow는 page-flow-planner에서 확정 |
-| 연락 목적 개인정보 처리 | P0에 contact follow-up 기능을 포함한다. `other` 자유입력은 feedback 텍스트로만 쓰고, SNS/메일 발송용 연락처는 별도 필드와 별도 동의로 수집한다. 단, contact collection gate를 통과하지 못하면 P0 core flow에서는 연락처 수집 없이 진행한다. | 없음 |
+| 연락 목적 개인정보 처리 | P0는 contact follow-up gate와 data model만 정의하고 기본 disabled로 둔다. `other` 자유입력은 feedback 텍스트로만 쓰며, SNS/메일 발송용 연락처 UI, 저장, 발송은 contact collection gate를 명시적으로 켜기 전까지 제공하지 않는다. | 수익화/외부 beta 전 연락처 수집 재검토 |
 | owner 팀 부재 | P0에서는 개발자인 사용자가 deletion owner, policy owner, platform/storage owner를 겸임한다. 단, 자기 승인 break-glass와 contact plaintext reveal은 허용하지 않는다. | second reviewer 확보 여부 |
 | 권리 미확보 `Mist` learner 노출 | `unlicensed_internal_risk`는 learner 노출 금지 상태로 두고, risk acceptance가 기록된 `unlicensed_internal_risk_accepted`에서만 internal allowlist에 제한 노출한다. | 실제 risk acceptance record 작성 |
 | Rating timing 모호함 | `preview_played=true` 이후에만 `rating_required=true`가 된다. `completed`는 report 준비 상태이며 rating 완료 상태가 아니다. | 없음 |
@@ -495,7 +501,7 @@ Metric eligibility:
 - Job completion non-exclusions: engine failure, timeout, post-start blocked state, playback failure는 실패 또는 non-success로 계산하며 조용히 제외하지 않는다.
 - Primary learner success denominator: valid P0 section job을 제출한 distinct participating learners. 10명 미만이면 "5 of 10" 성공 선언을 하지 않는다.
 - Primary learner success numerator: 첫 metric-eligible played preview에서 primary rating 4점 이상을 준 distinct learners.
-- Metric-eligible played preview requires `preview_artifact_id`, `section_id=intro`, `section_limited=true`, `preview_played=true`, `playback_blocked=false` at playback time, `pipeline_mode` in `partial_real` or `real_synthesis`, prompt version, 1-5 rating.
+- Metric-eligible played preview requires `preview_artifact_id`, `section_id=intro`, `section_limited=true`, `preview_played=true`, `playback_blocked=false` at playback time, `pipeline_mode` in `partial_real` or `real_synthesis`, `mock_fixture_used=false`, `playback_session_id`, prompt version, and 1-5 rating.
 - Failed jobs and unplayed previews are non-success, not silent exclusions.
 
 ## Rights Evidence Checklist
@@ -603,7 +609,7 @@ Sources: [NIST SP 800-63B](https://pages.nist.gov/800-63-4/sp800-63b.html), [OWA
 | `expert_review` | Yes for P0 job | unchecked | signup/first login allowed, job snapshot required | 철회 즉시 educator/expert 접근 차단, review queue에서 숨김 |
 | `candidate_data_opt_in` | No | unchecked | optional, can be changed later | candidate dataset에서 제외하고 기존 candidate labels는 `withdrawn`으로 표시 |
 | `retention_notice_ack` | Yes | unchecked | signup/first login allowed, job snapshot required | 미동의 시 P0 job 생성 차단 |
-| `contact_for_followup` | No | unchecked | optional and separated | 철회 후 SNS/메일 발송 중지, 연락처 처리 목적 제한 |
+| `contact_for_followup` | No | unchecked | gate-only disabled in P0, optional and separated when enabled later | 철회 후 SNS/메일 발송 중지, 연락처 처리 목적 제한 |
 
 Consent record는 최소 `consent_type`, `version`, `scope`, `required`, `granted_at`, `withdrawn_at`, `source_job_id`, `source_session_id`, `policy_document_version`, `policy_document_hash`를 가진다. Job consent snapshot은 `snapshot_id`, `snapshot_hash`, selected song/section, reference/lyrics display flags, policy version을 함께 저장한다. Candidate data opt-in 철회는 operational audit과 deletion evidence 보관 의무까지 자동 삭제한다는 뜻이 아니다. 다만 future model-improvement dataset에는 포함하지 않는다.
 
@@ -621,22 +627,23 @@ Voice-bearing artifact deletion은 철회 후 24시간 내 deletion job을 예�
 
 SNS, 메일 등 추후 연락을 위한 개인정보는 failure tag의 `other` 자유입력에 받지 않는다. 연락처는 별도 필드와 별도 동의로 수집한다. 표시 화면에서는 마스킹하고, 발송 등 필요한 목적에서는 권한 있는 backend/service만 복호화할 수 있도록 암호화 저장한다. 복호화 접근은 audit 대상이다.
 
-P0 contact collection:
+P0 contact collection gate:
 
-- Contact channels: email, SNS account
+- Runtime status: hidden/disabled by default. No contact UI, contact value storage, or sending is allowed in P0 unless this gate is explicitly enabled in a later decision.
+- Contact channels when later enabled: email, SNS account
 - Allowed purposes: follow-up, 오류 안내, 인터뷰 요청
 - Not allowed without separate consent: marketing, 광고성 메시지, 제3자 제공
 - Retention: 내부 운영 기간 동안 보관하고 내부 운영 종료 후 90일 이내 삭제한다.
 - Withdrawal: 사용자가 `contact_for_followup` 동의를 철회하면 발송을 즉시 중지하고, 연락처 암호문과 검색용 hash는 30일 이내 삭제한다.
 - Evidence: 동의, 철회, 삭제 evidence는 raw contact value 없이 최대 1년 보관할 수 있다.
 - Signup/login email은 follow-up contact로 자동 재사용하지 않는다. 같은 이메일을 쓰더라도 별도 unchecked opt-in과 목적 고지가 필요하고, SNS 또는 다른 이메일은 별도 confirm이 필요하다.
-- Contact collection은 P0 포함 기능이지만 core job flow의 blocking dependency가 아니다. contact collection gate를 통과하지 못하면 연락처 UI는 숨기거나 disabled하고, P0 preview/rating flow는 연락처 수집 없이 진행한다.
+- Contact collection은 P0에서 gate와 data model만 정의하고 기본 disabled로 둔다. 연락처 UI는 숨기거나 disabled하며, P0 preview/rating flow는 연락처 수집 없이 진행한다.
 
 ## Contact Data Encryption And Key Management Guide
 
 연락처는 마스킹만으로는 충분하지 않다. 실제 발송이 필요하므로 복호화 가능한 암호화 저장을 사용하되, 평문 노출 경로를 최소화한다. OWASP Cryptographic Storage Cheat Sheet는 민감정보 저장 최소화, 인증된 암호화 모드, key와 data 분리, key rotation을 권장한다. OWASP Secrets Management Cheat Sheet와 NIST SP 800-57은 key lifecycle과 운영 절차를 별도 관리 대상으로 본다. Sources: [OWASP Cryptographic Storage](https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html), [OWASP Secrets Management](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html), [NIST SP 800-57 Part 1 Rev. 5](https://csrc.nist.gov/pubs/sp/800/57/pt1/r5/final).
 
-P0 storage model:
+Gate-ready storage model:
 
 - `contact_type`: `email` or `sns`
 - `contact_label`: `email`, `x`, `instagram`, `discord`, etc.
@@ -664,7 +671,8 @@ P0 key management:
 
 Contact collection gate:
 
-- `contact_collection_enabled=true`는 authenticated encryption, keyed hash, KMS/Vault/OS keychain 또는 동등 secret store, audit write success, no plaintext UI, no CSV export가 모두 준비된 경우에만 허용한다.
+- P0 default is `contact_collection_enabled=false`.
+- `contact_collection_enabled=true`는 authenticated encryption, keyed hash, KMS/Vault/OS keychain 또는 동등 secret store, audit write success, no plaintext UI, no CSV export가 모두 준비된 경우에만 Later decision으로 허용한다.
 - second reviewer 또는 별도 decrypt approver가 없으면 contact plaintext reveal은 disabled다.
 - single-recipient service-mediated send는 allowed purpose와 consent가 일치하고 audit write가 성공할 때만 허용한다.
 - contact deletion 대상은 ciphertext, keyed hash, masked value, lookup/search index, send queue payload, pending campaign target, UI cache, vendor/send logs의 직접 식별값을 포함한다.
@@ -761,6 +769,13 @@ preview_ready|completed|failed_with_partial_artifacts -> deleted
 blocked -> under_review is represented by rights/job review metadata, not learner-facing state
 ```
 
+Runtime policy change handling:
+
+- Consent withdrawn during `created`, `queued`, `processing`, `preview_ready`, or `completed`: block new engine requests and playback URL issuance immediately. If no deletion is requested, move active jobs to `blocked` with `consent_withdrawn`.
+- Rights state becomes `blocked`, `under_review`, or `expired`: block song selection, job creation, engine request, reference pre-listen, and generated preview playback. Preserve artifacts for policy review unless deletion is requested.
+- Deletion requested: mark affected artifacts `deletion_pending`, block new playback URLs, enqueue deletion, and write deletion evidence. If deletion fails, mark `deletion_failed` and require platform/storage owner review.
+- Audit write failure: fail closed for rights-sensitive operations and do not create jobs, publish engine events, issue playback URLs, or change rights state.
+
 ## StageResult Schema
 
 StageResult는 engine event의 대체 이벤트 포맷이 아니라 canonical job state owner가 typed engine event 또는 직접 stage completion fact를 정규화해 저장하는 internal stage ledger다.
@@ -856,10 +871,13 @@ Storage defaults:
 - Recording mode: P0 primary input is in-app recorder. The app records a local take, lets the learner review/retake it, then submits it through the same presigned object-storage path used by fallback upload.
 - Upload mode: P0 confirmed presigned direct upload for recorder take submission and fallback upload.
 - Flow: App recorder/take review -> BFF GraphQL -> API Gateway -> presigned PUT URL -> App uploads to object storage.
+- P0 object storage backend: MinIO with an S3-compatible contract.
 - Upload TTL: 15 minutes by default. Expired URL requires a new upload session.
 - Accepted extensions: `.wav`, `.mp3`.
 - Accepted declared MIME: `audio/wav`, `audio/x-wav`, `audio/wave`, `audio/vnd.wave`, `audio/mpeg`, `audio/mp3`. `audio/mp3`는 허용하되 `audio/mpeg`로 normalize한다.
-- If mobile recording produces a platform-native format, the app or ingest pipeline must normalize it into the accepted contract before `audio_ingest=succeeded`.
+- Fallback upload is restricted to `.wav` and `.mp3`.
+- If mobile recording produces a platform-native format, `audio-ingest` is the authoritative normalization boundary. The app may pre-normalize only when output is reliable, but `audio_ingest=succeeded` requires server/engine validation and canonical normalization.
+- Canonical downstream audio is normalized mono WAV/PCM.
 - `P0_MAX_UPLOAD_BYTES`: 50 MB default for P0. This is a file-size guard, not the authoritative duration check.
 - Declared MIME alone is not trusted. `completeAudioUpload` verifies object HEAD and engine ingest validates real content with ffprobe/ffmpeg.
 - `audio/*` broad matching is not the P0 product contract and must be tightened before relying on the allowlist.
@@ -876,9 +894,9 @@ Voice input completion contract:
 
 - `createAudioUploadSession` creates an upload session and presigned PUT URL only. It does not create a conversion job.
 - `completeAudioUpload` is the only boundary that commits a recorder take or fallback upload session into a P0 section preview job.
-- Input: `audio_asset_id` or `upload_session_id`, `idempotency_key`, `song_package_id`, `target_section_id`, consent snapshot reference, rights flag snapshot reference, optional `take_id`.
+- Input: `audio_asset_id` or `upload_session_id`, `idempotency_key`, `song_package_id`, `target_section_id`, optional `take_id`.
 - Server-trusted values: `source_object_key`, issued content type, original filename, owner user id, session expiry come from the upload session record rather than client-provided completion fields.
-- Preconditions: authenticated user, upload session owner match, session not expired, object HEAD exists, object key matches the issued upload path, HEAD `Content-Type` equals issued or normalized content type, object size is greater than 0 and `<= P0_MAX_UPLOAD_BYTES`, declared MIME allowlist passes, required consent snapshot exists, rights/audit allow decision succeeds.
+- Preconditions: authenticated user, upload session owner match, session not expired, object HEAD exists, object key matches the issued upload path, HEAD `Content-Type` equals issued or normalized content type, object size is greater than 0 and `<= P0_MAX_UPLOAD_BYTES`, declared MIME allowlist passes, server-computed required consent snapshot exists, rights/risk/audit allow decision succeeds.
 - Commit effect: create or link `audio_asset_id`, create P0 section preview `job_id`, set canonical state to `created` or `queued`, write initial `upload_validation` StageResult, persist transactional outbox row for `audio.ingest.requested`.
 - Publish rule: engine request is published from transactional outbox after DB commit, not before.
 - Idempotency: same key and same payload returns the same job projection. Same key with conflicting payload returns conflict. Missing or invalid object does not create a job and does not publish ingest.
@@ -1009,7 +1027,7 @@ P0 owner assignment: 별도 팀이 없으므로 개발자인 사용자가 deleti
 
 - `unlicensed_internal_risk_accepted`를 실제로 켜기 위한 risk acceptance record를 누가 작성/승인하고 어디에 저장할 것인가?
 - P0 내부 운영 기간 동안 second reviewer를 둘 수 있는가? 둘 수 없다면 break-glass raw/canonical audio access와 contact plaintext reveal은 disabled로 유지한다.
-- `contact_for_followup` UI와 backend 저장은 P0에 포함한다. 다만 KMS/Vault/OS keychain 기반 contact collection gate가 준비되지 않으면 기능을 disabled로 둘 것인가, 아니면 cloud KMS 또는 OS keychain 중 어떤 방식으로 gate를 먼저 충족할 것인가?
+- contact follow-up은 P0에서 gate와 data model만 남긴다. 실제 연락처 UI, 저장, 발송을 언제 어떤 owner/reviewer 체계로 켤 것인가는 수익화 또는 외부 beta 전 재결정한다.
 - 권리 evidence 없는 `Mist` 제한 노출을 내부 운영 종료 전 어느 시점에 `rights_pending`, `published`, 또는 `rights_blocked`로 재판정할 것인가?
 
 ## Recommended Next Skill

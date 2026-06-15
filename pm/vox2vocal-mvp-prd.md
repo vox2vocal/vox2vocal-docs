@@ -334,7 +334,8 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 - 이메일/비밀번호 기반 회원가입, 로그인, 현재 사용자 조회
 - 모바일 앱 및 웹에서 인증 후 MVP 작업 화면 접근
 - 앱 내 본인 목소리 녹음: mic permission, count-in, timer, input meter, stop, replay own take, retake, submit
-- 오디오 fallback upload: `wav`, `mp3`, 사용자 본인 보컬 연습 파일
+- 오디오 fallback upload: `wav`, `mp3`, 사용자 본인 보컬 연습 파일. in-app recorder가 platform-native format을 만들 경우 `audio-ingest`가 authoritative normalization을 수행한다.
+- P0 object storage: MinIO를 사용하되 S3-compatible contract를 유지한다.
 - 관리자 song package 등록: pitch target 추출과 비교 분석 목적의 원곡/reference audio, metadata, BPM, key, section map 정보를 등록. P0에서는 Ken Kamikita - `Mist` 수동 등록과 `intro` target section을 기준으로 하며 provider 자동화와 lyrics sync는 P1 실험 범위로 둔다.
 - 학습자 곡 선택: 학습자는 관리자 등록 곡만 선택할 수 있다.
 - 학습자 파트/section 선택: P0에서는 `intro`만 selectable이어도 곡 선택 이후 별도 section selection step을 둔다.
@@ -349,7 +350,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 - Safety Rights: 사용자 본인 voice input만 허용, conversion audit log
 - 작업 상태 화면: queued, processing, preview_ready, completed, failed, failed_with_partial_artifacts, blocked
 - 결과 화면: 앱 내 self-voice preview 재생, 현재/목표 음정 비교, 1-5점 평가, 4점 미만 실패 원인 태그, 실패 사유
-- Contact follow-up: 오류 안내, 후속 인터뷰, 내부 운영 follow-up 목적의 이메일/SNS 연락처 수집을 P0에 포함한다. 단, 별도 opt-in, 암호화 저장, audit, contact collection gate를 통과한 경우에만 활성화하며 core preview/rating flow의 blocking dependency로 두지 않는다.
+- Contact follow-up: P0에서는 gate와 데이터 모델만 정의하고 기본 disabled로 둔다. 오류 안내, 후속 인터뷰, 내부 운영 follow-up 목적의 이메일/SNS 연락처 수집은 별도 opt-in, 암호화 저장, audit, contact collection gate를 통과한 뒤 Later decision으로 활성화한다.
 
 ### Out Of Scope
 
@@ -412,7 +413,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 - The app must provide an in-app recorder as the primary input path for the user's own voice.
 - The recorder must support mic permission request, count-in, section timer, input level meter, stop, replay own take, retake, and submit.
 - The system may support `wav` and `mp3` fallback upload when recorder use is unavailable or internally enabled.
-- If the app records in a platform-native format, it must transcode or normalize into a server-accepted format before or during ingest.
+- If the app records in a platform-native format, `audio-ingest` is the authoritative normalization boundary. The app may pre-normalize when reliable, but the job must not reach `audio_ingest=succeeded` until the server/engine validates and normalizes the input.
 - The system must reject unsupported formats with a clear reason.
 - The system must convert accepted input to a standard mono WAV/PCM asset.
 - The system must produce metadata including sample rate, channels, duration, loudness estimate, silence segments, speech/voice segments, and `audio_asset_id`.
@@ -477,8 +478,15 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 ### FR-010 Preview Evaluation And Failure Tagging
 
 - The system must ask the primary question immediately after playback: "이 preview가 내 목소리처럼 들린다" on a 1-5 scale.
+- The system must only show the rating prompt after `preview_played=true`.
+- `preview_played=true` requires a real preview artifact, `pipeline_mode` in `partial_real` or `real_synthesis`, `mock_fixture_used=false`, `section_limited=true`, `playback_blocked=false`, a playback session id, successful playback URL audit, foreground unmuted playback, no severe playback error, and unique timeline coverage of at least 80% of preview duration.
+- For the P0 `Mist intro` section, `preview_played=true` requires at least 22.4 seconds of distinct timeline coverage because the section is 28 seconds long.
+- The app should send playback progress every 1 second during active foreground, unmuted playback, and must flush progress on pause, seek, end, background, mute, or error.
+- Playback events must include event id, schema version, occurred-at timestamp, and session-scoped client sequence so the server can merge duplicate or out-of-order events.
+- The server must compute `preview_played=true` from merged distinct played ranges. Client-reported total playback time alone must not count as metric eligibility.
 - If the rating is below 4, the user must be asked to select one or more failure reason tags.
-- P0 failure reason tags must include: `not_my_voice`, `not_song_like`, `pitch_wrong`, `timing_wrong`, `robotic_or_artifact`, `noise_or_clipping`, `too_short_or_incomplete`, `playback_issue`, `other`.
+- P0 failure reason tags must include: `not_my_voice`, `not_song_like`, `pitch_wrong`, `timing_wrong`, `robotic_or_artifact`, `noise_or_clipping`, `too_short_or_incomplete`, `other`.
+- Playback failure is not a preview quality rating tag. It must be captured as a separate `playback_problem_reported` event.
 - Internal reviewers may add technical tags such as `pitch_extraction_low_confidence`, `target_note_conflict`, `synthesis_failure`, `render_failure`, or `rights_blocked`.
 - The output must not be downloadable or externally shareable in P0 internal operation.
 
@@ -523,6 +531,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 - Deletion evidence must include artifact id, data class, deletion request source, retention deadline, deletion job id, deletion status, timestamp, and actor/service id without including raw audio or playable preview.
 - If deletion fails, the artifact must be marked `deletion_failed`, rights-sensitive playback must be blocked, and platform/storage owner review must be required.
 - Access to raw audio, generated preview, reference audio, failure reason tags, and analysis artifacts must follow the role-based access model in `Consent And Access Draft`.
+- If consent is withdrawn, rights are blocked/under review/expired, or deletion is requested while a job is queued or processing, the system must block new engine requests and new playback URLs, then move the job or artifact to the appropriate `blocked`, `deletion_pending`, `deleted`, or `deletion_failed` state.
 
 ### FR-016 Job State Ownership Capability
 
@@ -569,6 +578,10 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 - Given reference audio analysis and engine-derived note sequence conflict, when confidence or pitch disagreement crosses the Quantified Thresholds Draft, then the system labels the affected target range as low confidence, disputed, or review needed instead of forcing a target note.
 - Given a user rates the preview below 4 on "이 preview가 내 목소리처럼 들린다", when the rating is submitted, then the user must select at least one failure reason tag or enter `other`.
 - Given a user rates the preview 4 or higher, when the rating is submitted, then the response counts as success for the primary self-voice metric.
+- Given a user opens a playable preview, when they only tap play briefly or replay the same short range, then `preview_played=true` is not set until unique timeline coverage reaches at least 80% of the preview duration.
+- Given the `Mist intro` preview duration is 28 seconds, when the user hears at least 22.4 seconds of distinct timeline without severe playback error, foreground/mute/audit conditions are satisfied, and the preview is from `partial_real` or `real_synthesis`, then `preview_played=true` may be set.
+- Given `preview_played=false`, when the user tries to submit the primary self-voice rating, then rating submission is blocked and the user may report a playback problem instead.
+- Given playback progress events are duplicated, delayed, submitted out of order, or replayed with the same event id, when the server merges the events, then the server uses event id/schema validation and distinct played ranges, and does not inflate coverage from duplicate total time.
 - Given a pipeline stage fails, when the user views the job, then the failed stage, plain-language reason, and retry guidance are shown.
 - Given a completed P0 job, when internal reviewers inspect the artifacts, then preview completion status, pitch deviation, clipping status, rating, failure reason tags, and stage outputs are available.
 - Given a P0 section job completes or fails, when internal reviewers inspect the artifacts, then duration, per-stage timing, failed stage, section id, section timestamp, and section coverage details are available.
@@ -604,6 +617,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 - Self-voice preview usefulness
   - Baseline: Unknown.
   - Target: At least 5 of 10 learner participants rate the self-voice preview 4 or higher on the primary question, "이 preview가 내 목소리처럼 들린다". Any response below 4 does not count as success for this metric. No more than 2 learners should rate it 2 or lower.
+  - Eligibility: Only ratings tied to a metric-eligible `preview_played=true` playback session count.
   - Guardrail: The result screen must not present a job as successful when preview generation failed completely.
 - Time to preview
   - Baseline: Unknown.
@@ -636,6 +650,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 - Recording funnel
   - Baseline: Unknown.
   - Target: song selected -> section selected -> recorder ready -> take submitted -> preview played -> rating submitted as separate funnel events.
+  - Eligibility: `preview played` means the 80% unique timeline coverage threshold was reached for a non-mock `partial_real` or `real_synthesis` preview.
   - Guardrail: Reference playback unavailable, lyrics unavailable, or mic permission denied must not be silently counted as engine failure.
 
 ## Risks
@@ -661,16 +676,16 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 
 ## Dependencies
 
-- App: song selection, section selection, recorder/take review, fallback upload, job status screen, section result screen, app-only result playback UI, preview rating UI, failure reason tagging UI, contact follow-up opt-in UI, token/session integration
-- BFF: GraphQL mutations/queries for signup, login, admin song package registration, create project/job, upload initiation, job status, result retrieval, contact follow-up preference
+- App: song selection, section selection, recorder/take review, fallback upload, job status screen, section result screen, app-only result playback UI, preview rating UI, failure reason tagging UI, contact follow-up gate UI when later enabled, token/session integration
+- BFF: GraphQL mutations/queries for signup, login, admin song package registration, create project/job, upload initiation, job status, result retrieval, contact follow-up gate/preference endpoints disabled by default
 - API Gateway: orchestration APIs for auth, song package, project/job, asset, conversion, and user context
 - Job State Owner: canonical P0 job state, stage transition, retry, final decision, retention deadline, app-facing read model
 - User Service: account, auth, user identity, role/status
-- Storage: source audio, reference audio, canonical wav, manifests, render outputs, internal-only artifacts, deletion evidence
-- Queue/Eventing: NATS JetStream for audio/engine pipeline events, Redis/BullMQ if used for app-facing async jobs
+- Storage: MinIO-backed S3-compatible object storage for source audio, reference audio, canonical wav, manifests, render outputs, internal-only artifacts, deletion evidence
+- Queue/Eventing: NATS JetStream is a required P0 runtime dependency for audio/engine pipeline events. Redis/BullMQ may be used for app-facing async jobs.
 - Engines: audio ingest, voice pitch, target pitch mapping, self-voice section preview, preview evaluation, safety rights
 - Infra: PostgreSQL, Redis, NATS, local or object storage, Kubernetes deployments, structured logs
-- Policy: terms, privacy policy, first-login required consent, job-level consent snapshot, own-voice consent, expert review consent, candidate data opt-in, contact follow-up opt-in, reference audio policy, lyrics display policy, audit retention, disallowed voice-use policy
+- Policy: terms, privacy policy, first-login required consent, job-level consent snapshot, own-voice consent, expert review consent, candidate data opt-in, contact follow-up gate policy, reference audio policy, lyrics display policy, audit retention, disallowed voice-use policy
 - Music domain inputs: target song metadata, section map, provider/source metadata, lyrics handling, BPM/key source, reference audio handling, reference pre-listen rights flags, lyrics display/sync flags, target note extraction policy
 - External data providers: YouTube/Spotify/music metadata domains, lyrics providers, and any licensed source required for metadata or lyric retrieval
 - Music education expertise: section selection, pitch feedback interpretation, low-confidence cases, and learner-facing explanation copy
@@ -693,19 +708,14 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 
 ### Quality And Metrics
 
-- "이 preview가 내 목소리처럼 들린다" 평가 문항을 어떤 UI timing과 copy로 노출할 것인가?
-- 4점 미만 실패 원인 태그의 최종 목록과 `other` 자유입력 정책은 어떻게 둘 것인가?
-- P0 section preview에서 time-to-preview 관찰 기준은 P50 10분, P95 30분, timeout 60분으로 확정할 것인가?
+- "이 preview가 내 목소리처럼 들린다" 평가 문항의 visual placement와 microcopy를 결과 화면에서 어떻게 다듬을 것인가?
+- P0 confirmed failure tag 목록을 결과 화면에서 어떤 문구로 보여주고, `other` 자유입력의 개인정보/민감정보 유입을 어떻게 제한할 것인가?
 - 결과가 나쁘더라도 job은 `completed`로 볼 것인가, quality threshold 미달이면 `failed` 또는 `needs_review`로 볼 것인가?
 
 ### Technical Scope
 
-- recorder take와 fallback upload는 모두 presigned URL/object storage를 사용할 것인가, recorder take만 다른 ingest path를 둘 것인가?
-- P0 canonical job state owner를 worker/API Gateway/BFF 중 어디의 bounded module로 시작할 것인가?
-- NATS 기반 엔진 이벤트와 app-facing job projection을 어떤 저장소에서 관리할 것인가?
-- 현재 `worker`의 Redis/BullMQ 역할과 NATS 기반 engine pipeline 역할을 어떻게 나눌 것인가?
-- downstream 엔진이 아직 구현되지 않은 단계에서는 mock engine, stub output, or partial pipeline 중 어떤 방식으로 UX를 검증할 것인가?
-- P0 section preview의 최소 viable engine path는 mock, partial-real pipeline, real synthesis 중 무엇으로 시작할 것인가?
+- NATS engine event envelope, StageResult normalization schema, and app-facing job projection schema를 어떤 versioning 정책으로 관리할 것인가?
+- Redis/BullMQ를 app-facing async job에 사용할 경우, NATS engine pipeline과 중복 retry/timeout ownership이 생기지 않도록 어떤 boundary test를 둘 것인가?
 
 ### Launch
 
@@ -740,4 +750,4 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 - Safety Rights는 feature가 아니라 launch gate로 취급한다.
 - 앱은 모바일 first이지만, Expo Web에서도 핵심 flow를 유지한다.
 - 현재 구현 상태를 기준으로 auth 연동, recorder/upload job API, section result UI, canonical P0 job state owner, minimal engine path가 주요 신규 개발 범위다.
-- PRD 승인 전에는 section map 검수, reference audio rights clearance, self-voice preview 평가 문항 UI, failure reason tag 목록, song package 필수 metadata, 저장/삭제 정책, P0 job state owner를 반드시 확정해야 한다.
+- PRD 승인 전에는 section map 검수, reference audio rights clearance, self-voice preview 평가 문항 UI, failure reason tag 목록, song package 필수 metadata, 저장/삭제 정책을 반드시 확정해야 한다. P0 job state owner는 worker `conversion-job-state` bounded module로 결정했다.
