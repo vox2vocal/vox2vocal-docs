@@ -337,7 +337,7 @@ npm.cmd test -- --runInBand
 
 Vox2Vocal workspace는 monorepo가 아니라 MSA 구조다. 각 하위 폴더는 독립 Git repository이므로 변경한 repo 안에서 개별 commit/push 한다.
 
-상세 Git 정책은 `vox2vocal-docs/workspace/git-policy.md`를 따른다. 모든 repo에는 동일한 `scripts/validate-git-policy.sh`, `.githooks/commit-msg`, `.githooks/pre-push`, `.github/workflows/git-policy.yml`을 둔다.
+상세 Git 정책은 `vox2vocal-docs/workspace/git-policy.md`를 따른다. 각 repo에는 `scripts/validate-git-policy.sh`, `.githooks/commit-msg`, `.githooks/pre-push`, `.github/workflows/git-policy.yml`을 둔다.
 
 커밋 author와 committer는 항상 `gitbyul <gitbyul@gmail.com>`이어야 한다. 다른 개인 계정, bot 계정, 로컬 머신 이메일, GitHub noreply 이메일은 허용하지 않는다.
 
@@ -347,86 +347,66 @@ Vox2Vocal workspace는 monorepo가 아니라 MSA 구조다. 각 하위 폴더는
 scripts/install-git-policy-hooks.sh
 ```
 
-커밋 메시지는 Conventional Commits 형식을 사용한다.
+일반 코드 repo의 커밋 메시지는 ticket을 필수로 포함한다.
 
 ```txt
-type(scope): 한글 제목
+type(scope): [TICKET] 한글 제목
 
 - 한글 bullet body
 ```
 
-- `type`은 영어 소문자로 작성한다.
-- `scope`는 영어 소문자로 작성하며 변경 대상 repo 또는 기능 영역을 나타낸다.
-- 제목은 한글로 작성한다.
+문서 repo는 ticket을 선택으로 두고, 문서 버전 또는 문서 변경 단위를 bracket에 표시한다.
+
+```txt
+type(scope): [VERSION] 한글 제목
+
+- 한글 bullet body
+```
+
+- `type`은 `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `ci` 중 하나로 작성한다.
+- `scope`는 영어 소문자 kebab-case로 작성하며 변경 대상 repo 또는 기능 영역을 나타낸다.
+- 제목과 본문에는 한글이 포함되어야 한다.
 - 제목만 작성하지 않고, 커밋 본문에 변경 내용을 한글 bullet로 작성한다.
 - 제목과 본문 사이에는 빈 줄을 한 줄만 둔다.
 - 본문 bullet 사이에는 빈 줄을 넣지 않는다.
-- 본문에도 한글이 포함되어야 한다.
-- 커밋 메시지 전체에 불필요한 빈 줄을 여러 번 넣지 않는다.
 - 관련 없는 여러 repo의 변경을 하나의 커밋으로 묶지 않는다.
 - 변경 단위가 다르면 같은 repo 안에서도 작업 단위별로 커밋을 나눈다.
 
-주요 type 예시:
+일반 코드 repo branch 형식:
 
 ```txt
-feat: 기능 추가
-fix: 버그 수정
-docs: 문서 변경
-chore: 설정, 의존성, 환경 구성 변경
-refactor: 동작 변경 없는 구조 개선
-test: 테스트 추가 또는 수정
-ci: CI/CD 설정 변경
+type/TICKET-short-summary
 ```
 
-scope 예시:
+예시:
 
 ```txt
-app
-bff
-gateway
-user
-worker
-infra
-docs
-engine
-engine-audio-ingest
-engine-voice-analysis
-engine-voice-pitch
-setup
-spec
+feat/V2V-123-auth-refresh
+fix/V2V-204-token-case-mapping
+chore/V2V-000-git-policy-pr-flow
 ```
 
-커밋 예시:
+일반 코드 repo는 `main`에서 직접 작업하지 않는다. ticket branch에서 commit하고 PR을 생성한 뒤 `git-policy` check와 리뷰를 통과시킨다. GitHub UI merge 버튼은 사용하지 않으며, `gitbyul` 로컬 환경에서 fast-forward로 main에 반영한다.
 
-```txt
-chore(infra): 데이터 저장소 이미지 버전 고정
+승인된 PR을 main에 반영할 때만 다음 예외를 사용한다.
 
-- PostgreSQL 이미지를 postgres:17.10-alpine으로 고정
-- Redis 이미지를 redis:7.2.14-alpine3.21로 고정
-- infra README에 데이터 저장소 이미지 기준 추가
+```bash
+GIT_POLICY_ALLOW_MAIN_MERGE_PUSH=1 GIT_POLICY_PR_NUMBER=<number> git push origin main
 ```
 
-잘못된 예시:
-
-```txt
-chore(infra): 데이터 저장소 이미지 버전 고정
-
-- PostgreSQL 이미지를 postgres:17.10-alpine으로 고정
-
-- Redis 이미지를 redis:7.2.14-alpine3.21로 고정
-
-- infra README에 데이터 저장소 이미지 기준 추가
-```
+문서 repo는 기존 운영처럼 직접 문서 커밋을 허용할 수 있다. 단, commit message와 body 규칙, 문서 버전업 전 선행 커밋 규칙은 반드시 지킨다.
 
 push 원칙:
 
-- `app` 변경은 `app` repo에서 commit/push 한다.
-- `bff-server` 변경은 `bff-server` repo에서 commit/push 한다.
-- `api-gateway` 변경은 `api-gateway` repo에서 commit/push 한다.
-- `user-service` 변경은 `user-service` repo에서 commit/push 한다.
-- `worker` 변경은 `worker` repo에서 commit/push 한다.
-- `infra` 변경은 `infra` repo에서 commit/push 한다.
-- `docs` 변경은 `docs` repo에서 commit/push 한다.
+- `app` 변경은 `vox2vocal-app` repo에서 commit/push 한다.
+- `bff-server` 변경은 `vox2vocal-bff-server` repo에서 commit/push 한다.
+- `api-gateway` 변경은 `vox2vocal-api-gateway` repo에서 commit/push 한다.
+- `user-service` 변경은 `vox2vocal-user-service` repo에서 commit/push 한다.
+- `worker` 변경은 `vox2vocal-worker` repo에서 commit/push 한다.
+- `infra` 변경은 `vox2vocal-infra` repo에서 commit/push 한다.
+- `docs` 변경은 `vox2vocal-docs` repo에서 commit/push 한다.
+- `design-kit` 변경은 `vox2vocal-design-kit` repo에서 commit/push 한다.
+- `agent-skills` 변경은 `vox2vocal-agent-skills` repo에서 commit/push 한다.
 - `engine-audio-ingest` 변경은 `engine-audio-ingest` repo에서 commit/push 한다.
 - `engine-voice-analysis` 변경은 `engine-voice-analysis` repo에서 commit/push 한다.
 - `engine-voice-pitch` 변경은 `engine-voice-pitch` repo에서 commit/push 한다.
@@ -434,10 +414,10 @@ push 원칙:
 
 강제 장치:
 
-- local `commit-msg` hook은 Git identity와 커밋 메시지를 검사한다.
-- local `pre-push` hook은 push 대상 커밋의 author, committer, 메시지를 검사한다.
-- GitHub Actions `git-policy` workflow는 PR 신규 커밋과 `workflow_dispatch` 대상 커밋을 검사한다.
-- GitHub `main` ruleset에서는 `git-policy` required check, PR 필수, force push 금지, 삭제 금지를 적용한다.
+- local `commit-msg` hook은 Git identity, branch, 커밋 메시지를 검사한다.
+- local `pre-push` hook은 branch, main push 예외 조건, push 대상 커밋의 author, committer, 메시지를 검사한다.
+- GitHub Actions `git-policy` workflow는 PR branch와 PR 신규 커밋, `workflow_dispatch` 대상 커밋을 검사한다.
+- GitHub `main` ruleset에서는 `git-policy` required check, force push 금지, 삭제 금지, update 제한을 적용한다.
 - 현재 rewritten history는 unsigned 상태이므로 signed commit required ruleset은 signing key 구성 이후 새 커밋부터 적용한다.
 ## Git Safe Directory Rule
 
