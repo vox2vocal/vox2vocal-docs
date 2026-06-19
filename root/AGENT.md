@@ -377,7 +377,7 @@ type(scope): [문서번호_버전] 한글 제목
 예시:
 
 ```txt
-docs(policy): [GIT-POLICY_v2026.06.19] Git 정책 운영 방식 갱신
+docs(policy): [GIT-POLICY_v0.1] Git 정책 운영 방식 갱신
 docs(prd): [MVP-PRD_v0.14] MVP PRD 동의 정책 갱신
 ```
 
