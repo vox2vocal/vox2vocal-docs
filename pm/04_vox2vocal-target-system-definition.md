@@ -1,6 +1,6 @@
 # 목표 시스템 정의 (Target System Definition)
 
-문서 버전: v0.2
+문서 버전: v0.3
 작성일: 2026-06-19
 기반 문서:
 
@@ -98,7 +98,7 @@ Vox2Vocal의 목표 시스템은 단일 개인 사용자가 앱 계정으로 로
 | Self-voice 평가 (Self-voice Rating) | preview 자기 평가 | rating 1~5, weighted criteria, failure tags, review state |
 | A/B 실험 (A/B Experiment) | self-voice 개선 조건을 비교하는 실험 단위 | experiment id, baseline artifact, candidate artifact, variable type, variable diff, config hash, prompt version, preferred result, failure tags |
 | Playback 세션 (Playback Session) | preview 재생 확인 | session id, coverage, foreground state, blocked state |
-| 삭제 요청/삭제 기록 (Deletion Request and Deletion Record) | 데이터 삭제 흐름 | target object, requested at, completed at, backup exception |
+| 삭제 요청/삭제 기록 (Deletion Request and Deletion Record) | 데이터 삭제 흐름 | target object, deletion state, requested at, blocked at, completed at, backup exception |
 | 감사 로그 (Audit Log) | 접근/변경/차단 이력 | actor role, action, object type, timestamp, result |
 
 ## 권한 모델 (Permission Model)
@@ -115,7 +115,9 @@ Vox2Vocal의 목표 시스템은 단일 개인 사용자가 앱 계정으로 로
 
 모든 권한의 기본 원칙은 계정 내부 접근, 최소 권한, 외부 공유 차단이다.
 
-공유되는 계정/세션 정책은 인증 provider, 로그인 보안 이벤트, session 만료/폐기, 계정 삭제 상태다. 분리되는 계정/로그는 일반 사용자 account id, 관리자 account id, 관리자 페이지 접근 권한, 곡 upload/change log, 권리/출처 변경 log, 운영 job 조작 log, 앱 playback/self-voice 평가 log다. P0 이메일/비밀번호 계정은 수동 활성화로 시작하고, 관리자 계정은 seed/admin script로 생성한다. 계정 삭제 요청 후에는 로그인, playback, job 생성, 관리자 접근을 모두 즉시 차단하되 삭제 접수/진행 상태를 보여주는 최소 상태 화면만 허용한다.
+공유되는 계정/세션 정책은 인증 provider, 로그인 보안 이벤트, session 만료/폐기, 계정 삭제 상태다. 분리되는 계정/로그는 일반 사용자 account id, 관리자 account id, 관리자 페이지 접근 권한, 곡 upload/change log, 권리/출처 변경 log, 운영 job 조작 log, 앱 playback/self-voice 평가 log다. P0 이메일/비밀번호 계정은 수동 활성화로 시작하고, 관리자 계정은 seed/admin script로 생성한다.
+
+계정 삭제 요청 후에는 계정을 `deletion_requested` 또는 `disabled` 상태로 전환하고, 기존 session과 token을 폐기한다. 로그인, playback, job 생성, 관리자 접근은 즉시 차단한다. 단, 사용자가 삭제 요청이 접수되었고 처리 중이라는 사실만 확인할 수 있도록 삭제 상태 확인용 최소 화면은 허용한다. 이 화면은 playback, job 생성, 관리자 페이지, 일반 앱 기능으로 이동할 수 없어야 하며, 상세 내부 사유는 사용자에게 노출하지 않고 감사 로그에 남긴다.
 
 ## 연동 지점 (Integration Points)
 
@@ -184,7 +186,8 @@ Vox2Vocal의 목표 시스템은 단일 개인 사용자가 앱 계정으로 로
 - 일반 사용자 계정과 관리자 계정은 별도 계정으로 분리한다.
 - 일반 사용자 계정은 관리자 페이지에 접근할 수 없고, 관리자 계정은 앱에 접근할 수 있다.
 - P0 이메일/비밀번호 계정은 수동 활성화로 시작하고, 관리자 계정은 seed/admin script로 생성한다.
-- 계정 삭제 요청 후에는 로그인, playback, job 생성, 관리자 접근을 모두 즉시 차단하고 최소 삭제 상태 화면만 허용해야 한다.
+- 계정 삭제 요청 후에는 계정을 `deletion_requested` 또는 `disabled` 상태로 전환하고 기존 session/token을 폐기해야 한다.
+- 계정 삭제 요청 후에는 로그인, playback, job 생성, 관리자 접근을 모두 즉시 차단하고 삭제 상태 확인용 최소 화면만 허용해야 한다.
 - 권한 차단은 사용자에게 짧고 일반적인 메시지만 보여주고, 상세 reason code는 감사 로그에 남겨야 한다.
 - 개인정보/보관/삭제 기준은 PRD에 흩어 쓰지 않고 정책 정본에서 관리해야 한다.
 - 권리/출처 메모는 곡 metadata의 부속 필드가 아니라 별도 등록부의 정본으로 관리해야 한다.
