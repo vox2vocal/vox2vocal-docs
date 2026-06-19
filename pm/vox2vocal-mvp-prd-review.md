@@ -1,8 +1,13 @@
 # Vox2Vocal MVP PRD 리뷰
 
-리뷰 대상 문서: `pm/vox2vocal-mvp-prd.md` v0.11
-리뷰 기준: `prd-reviewer` skill  
+문서 버전: v0.1
+작성일: 2026-06-13
+상태: 리뷰 기록
+적용 skill: `prd-reviewer`
 리뷰일: 2026-06-13
+기반 문서:
+
+- `pm/vox2vocal-mvp-prd.md` v0.11
 
 ## 현재 반영 상태
 

@@ -1,8 +1,11 @@
 # Vox2Vocal MVP 기획 / API 계약 재리뷰
 
+문서 버전: v0.1
+작성일: 2026-06-15
+상태: 리뷰 기록
 리뷰일: 2026-06-15
 적용 skill: `trd-reviewer`
-리뷰 대상:
+기반 문서:
 
 - `pm/vox2vocal-mvp-prd.md` v0.14
 - `pm/vox2vocal-mvp-feature-definition.md` v0.6
