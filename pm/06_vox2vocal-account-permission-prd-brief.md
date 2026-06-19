@@ -1,12 +1,12 @@
 # 제품 브리프 (Product Brief)
 
-문서 버전: v0.2
+문서 버전: v0.3
 작성일: 2026-06-19
 PRD 후보: 개인 계정 및 권한 PRD (Account and Permission PRD)
 기반 문서:
 
 - `pm/03_vox2vocal-product-vision.md` v0.1
-- `pm/04_vox2vocal-target-system-definition.md` v0.2
+- `pm/04_vox2vocal-target-system-definition.md` v0.3
 - `pm/05_vox2vocal-phase-plan.md` v0.1
 
 ## 브리프 요약 (Brief Summary)
@@ -44,7 +44,9 @@ Vox2Vocal은 음원, 본인 음성, preview 산출물, pitch/note/발성 분석 
 - 관리자 권한은 같은 계정의 `admin` role이 아니라 **별도 관리자 계정**으로 분리한다.
 - 별도 관리자 계정은 제한된 관리자 가입 화면이 아니라 seed/admin script로 생성한다.
 - 계정 삭제 요청 후에는 로그인, playback, job 생성, 관리자 접근을 모두 즉시 차단한다.
+- 삭제 요청 직후에는 계정을 `deletion_requested` 또는 `disabled` 상태로 전환하고 기존 session/token을 폐기한다.
 - 삭제 요청 직후에는 일반 기능 접근을 모두 막되, 삭제 접수/진행 상태를 보여주는 최소 상태 화면만 허용한다.
+- 삭제 상태 화면은 접수 여부, 처리 중 상태, 일반 기능 차단 사실만 보여주며 playback, job 생성, 관리자 페이지로 이동할 수 없어야 한다.
 - 관리자 접근 실패와 권한 차단은 사용자에게 짧고 일반적인 메시지만 노출하고, 상세 사유는 감사 로그에 남긴다.
 - push token은 계정 PRD에 최소 등록/해제 기준만 포함하고, 알림 템플릿, 발송, retry, in-app inbox 등 상세 알림 기능은 별도 알림 PRD로 분리한다.
 
@@ -71,6 +73,7 @@ Vox2Vocal은 음원, 본인 음성, preview 산출물, pitch/note/발성 분석 
 - 권한이 없는 접근 시 관리자 기능, 곡 metadata 변경, 권리 상태 변경, 운영 job 조작이 차단된다.
 - 계정 삭제 또는 비활성화 상태에서는 로그인, 앱, 관리자 페이지, playback, job 생성, 처리 요청이 모두 즉시 차단된다.
 - 삭제 요청 직후 사용자는 삭제 접수/진행 상태를 확인하는 최소 상태 화면만 볼 수 있다.
+- 삭제 상태 화면에는 삭제 접수 여부, 처리 중 상태, 일반 기능 차단 안내만 표시한다.
 - 로그인, 로그아웃, 세션 만료, 관리자 접근 시도, 권한 차단, 계정 비활성화, token 폐기 이벤트가 감사 로그로 남는다.
 - 권한 차단의 사용자 노출은 짧고 일반적인 메시지로 제한하고, 상세 reason code는 감사 로그에 남긴다.
 - push token은 계정 PRD에서 등록/해제 lifecycle만 정의하고, 민감한 곡명, 권리 정보, 음성 내용을 payload에 포함하지 않는다.
@@ -99,6 +102,7 @@ Vox2Vocal은 음원, 본인 음성, preview 산출물, pitch/note/발성 분석 
 - P0 이메일/비밀번호 계정은 수동 활성화로 시작한다.
 - 관리자 계정은 seed/admin script로 생성한다.
 - 계정 삭제 요청 후에는 로그인, playback, job 생성, 관리자 접근을 모두 즉시 차단한다.
+- 삭제 요청 후에는 계정을 `deletion_requested` 또는 `disabled` 상태로 전환하고 session/token을 폐기한다.
 - 삭제 요청 후에는 일반 기능을 차단하고 최소 삭제 상태 화면만 허용한다.
 - 권한 차단 상세 사유는 사용자에게 노출하지 않고 감사 로그에 남긴다.
 - 업로드 곡의 기본 권리 상태는 `rights_not_cleared_personal_use_only`다.
@@ -113,7 +117,8 @@ Vox2Vocal은 음원, 본인 음성, preview 산출물, pitch/note/발성 분석 
 - P0에서는 일반 사용자 계정과 관리자 계정을 물리적으로 분리하고, 두 계정이 같은 개인에게 귀속된다는 운영 전제를 둔다.
 - 관리자 계정 생성은 seed/admin script 기반으로 시작하면 P0 검증에는 충분하다.
 - 계정 삭제는 즉시 비활성화와 token 폐기를 우선하고, 저장 데이터 삭제는 후속 정책/운영 문서의 절차를 따른다.
-- 삭제 요청 후 최소 상태 화면은 삭제 처리 접수, 일반 기능 차단, 예상 처리 상태 정도만 보여주며 playback, job 생성, 관리자 접근으로 이동할 수 없어야 한다.
+- 삭제 요청 후 최소 상태 화면은 삭제 처리 접수, 일반 기능 차단, 처리 중 상태 정도만 보여주며 playback, job 생성, 관리자 접근으로 이동할 수 없어야 한다.
+- 삭제 상태 화면은 내부 삭제 사유, 데이터 위치, audit reason code, 권리/출처 세부정보를 노출하지 않는다.
 - passkey와 소셜 로그인은 P0 이후 확장으로 두되, 인증 provider 선택상 소셜 로그인이 선행되어야 하면 순서를 조정할 수 있다.
 
 ## 리스크 (Risks)
@@ -133,7 +138,7 @@ Vox2Vocal은 음원, 본인 음성, preview 산출물, pitch/note/발성 분석 
 
 - P0 이메일/비밀번호 가입은 수동 활성화로 시작한다.
 - 별도 관리자 계정은 seed/admin script로 생성한다.
-- 계정 삭제 요청 후에는 로그인, playback, job 생성, 관리자 접근을 즉시 차단하되, 삭제 접수/진행 상태를 보여주는 최소 상태 화면만 허용한다.
+- 계정 삭제 요청 후에는 session/token을 폐기하고 로그인, playback, job 생성, 관리자 접근을 즉시 차단하되, 삭제 접수/진행 상태를 보여주는 최소 상태 화면만 허용한다.
 
 ## 다음 추천 스킬 (Recommended Next Skill)
 
