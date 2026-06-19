@@ -329,6 +329,83 @@ npm.cmd start
 http://vox2vocal.local/graphql
 ```
 
+### 10. macOS App 인증 연동 실행
+
+macOS에서 Web, iOS simulator, Android emulator로 로그인/회원가입을 테스트할 때는 BFF를 Mac의 `localhost:4000`으로 먼저 열어야 한다.
+
+별도 터미널:
+
+```bash
+kubectl port-forward -n vox2vocal svc/bff-server 4000:4000
+```
+
+포트가 열렸는지 확인한다.
+
+```bash
+curl -I http://localhost:4000/health
+```
+
+정상 예시:
+
+```txt
+HTTP/1.1 200 OK
+```
+
+App 기본 BFF endpoint는 플랫폼별로 다르다.
+
+| 실행 대상 | 기본 GraphQL endpoint | 비고 |
+| --- | --- | --- |
+| Web | `http://localhost:4000/graphql` | browser Origin이 BFF allowlist에 있어야 한다. |
+| iOS simulator | `http://localhost:4000/graphql` | simulator의 `localhost`는 Mac host를 가리킨다. |
+| Android emulator | `http://10.0.2.2:4000/graphql` | emulator에서 Mac host를 가리키는 특별 주소다. |
+
+Android에서 기존 JS bundle이 `localhost:4000`을 사용하고 있거나, 명시적으로 `EXPO_PUBLIC_BFF_GRAPHQL_URL=http://localhost:4000/graphql`을 넣어 실행한 경우에는 `adb reverse`도 함께 설정한다.
+
+```bash
+adb devices
+adb reverse tcp:4000 tcp:4000
+adb reverse --list
+```
+
+정상 예시:
+
+```txt
+host-12 tcp:8081 tcp:8081
+host-12 tcp:4000 tcp:4000
+```
+
+Web 실행 URL은 BFF의 `BFF_ALLOWED_ORIGINS`에 포함되어야 한다. 로컬 개발 기본 허용 Origin은 다음 계열이다.
+
+```txt
+http://localhost:8081
+http://127.0.0.1:8081
+http://localhost:8090
+http://127.0.0.1:8090
+http://localhost:19006
+http://127.0.0.1:19006
+```
+
+새 포트를 사용하면 `vox2vocal-infra/k8s/configmap.yaml`의 `BFF_ALLOWED_ORIGINS`에 Origin을 추가하고 BFF를 재시작한다.
+
+```bash
+kubectl apply -f vox2vocal-infra/k8s/configmap.yaml
+kubectl rollout restart deployment/bff-server -n vox2vocal
+kubectl rollout status deployment/bff-server -n vox2vocal
+```
+
+macOS에서 port-forward를 계속 유지해야 하면 `screen`을 사용할 수 있다.
+
+```bash
+screen -dmS vox2vocal-bff-port-forward kubectl port-forward -n vox2vocal svc/bff-server 4000:4000
+screen -ls
+```
+
+종료:
+
+```bash
+screen -S vox2vocal-bff-port-forward -X quit
+```
+
 ## 실행 순서 요약
 
 ```txt
@@ -343,6 +420,8 @@ Docker Desktop 실행
 -> pods, services, ingress 상태 확인
 -> hosts에 vox2vocal.local 등록
 -> 로컬 DB 접속이 필요하면 kubectl get svc -n vox2vocal postgres로 EXTERNAL-IP 확인
+-> macOS App 인증 테스트는 kubectl port-forward -n vox2vocal svc/bff-server 4000:4000 유지
+-> Android emulator는 필요 시 adb reverse tcp:4000 tcp:4000 적용
 -> app 실행
 ```
 
@@ -555,6 +634,133 @@ kubectl port-forward -n vox2vocal svc/bff-server 4000:4000
 
 ```bash
 curl http://localhost:4000/health
+```
+
+### Web, iOS, Android 로그인 전체 실패
+
+`user@example.com / password123` 계정으로 Web, iOS, Android가 모두 로그인되지 않으면 서버 계정 문제보다 로컬 연결 경로 문제일 가능성이 높다.
+
+먼저 서버와 DB 상태를 확인한다.
+
+```bash
+kubectl get pods -n vox2vocal
+kubectl get svc,endpoints -n vox2vocal
+kubectl logs -n vox2vocal deploy/bff-server --tail=100
+```
+
+DB 계정은 `users` schema에 있다. `public.users`가 아니라 `users.users`를 확인한다.
+
+```bash
+kubectl exec -n vox2vocal postgres-0 -- sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "select u.email, u.\"displayName\", u.role, u.status, count(pc.id) as credential_count from users.users u left join users.user_password_credentials pc on pc.\"userId\" = u.id where u.email = '\''user@example.com'\'' group by u.email, u.\"displayName\", u.role, u.status;"'
+```
+
+정상 예시:
+
+```txt
+user@example.com|Vox Demo User|USER|ACTIVE|1
+```
+
+그 다음 BFF port-forward를 확인한다.
+
+```bash
+lsof -nP -iTCP:4000 -sTCP:LISTEN
+curl -I http://localhost:4000/health
+```
+
+`localhost:4000`이 열려 있지 않으면 다음 명령을 별도 터미널에서 실행한다.
+
+```bash
+kubectl port-forward -n vox2vocal svc/bff-server 4000:4000
+```
+
+Web에서만 실패하고 BFF 로그에 다음 오류가 나오면 Origin allowlist 문제다.
+
+```txt
+Error: Origin not allowed
+```
+
+이 경우 현재 Web URL의 origin을 확인한다.
+
+```txt
+http://localhost:8081
+http://127.0.0.1:8081
+```
+
+브라우저 주소가 `localhost`인지 `127.0.0.1`인지, 포트가 무엇인지까지 모두 Origin에 포함된다. `localhost:8081`과 `127.0.0.1:8081`은 서로 다른 Origin이다.
+
+Android에서만 실패하면 emulator가 Mac host의 BFF를 볼 수 있는지 확인한다.
+
+```bash
+adb devices
+adb reverse --list
+adb shell 'toybox nc -z 10.0.2.2 4000 >/dev/null 2>&1; echo android_to_host_4000=$?'
+```
+
+정상 예시:
+
+```txt
+android_to_host_4000=0
+```
+
+Native 경로 smoke test는 토큰 원문을 출력하지 않고 성공 여부만 확인한다.
+
+```bash
+node <<'NODE'
+const query = `
+  mutation Login($input: LoginInput!) {
+    login(input: $input) {
+      accessToken
+      expiresIn
+      refreshToken
+      user {
+        email
+        displayName
+        role
+      }
+    }
+  }
+`
+
+fetch('http://localhost:4000/graphql', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Vox2Vocal-Client': 'native',
+  },
+  body: JSON.stringify({
+    query,
+    variables: {
+      input: {
+        email: 'user@example.com',
+        password: 'password123',
+      },
+    },
+  }),
+})
+  .then(async (response) => {
+    const payload = await response.json().catch(() => ({}))
+    const login = payload.data?.login
+
+    console.log(
+      JSON.stringify(
+        {
+          status: response.status,
+          ok: response.ok,
+          hasErrors: !!payload.errors,
+          hasAccessToken: !!login?.accessToken,
+          bodyHasRefreshToken: !!login?.refreshToken,
+          userEmail: login?.user?.email,
+        },
+        null,
+        2,
+      ),
+    )
+  })
+  .catch((error) => {
+    console.error(error)
+    process.exit(1)
+  })
+NODE
 ```
 
 ## 주의사항

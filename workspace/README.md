@@ -64,6 +64,8 @@ npm run start:dev
 
 minikube 배포 방법은 [`infra/README.md`](./infra/README.md)를 참고합니다.
 
+Web/iOS/Android 로그인까지 포함한 로컬 App 인증 연동 절차는 [`infra/local-run-guide.md`](../infra/local-run-guide.md)의 `macOS App 인증 연동 실행`과 `Web, iOS, Android 로그인 전체 실패` 섹션을 따른다.
+
 ## Root Agent Document
 
 `AGENT.md`는 Vox2Vocal 전체 workspace를 기준으로 작업하는 에이전트 지침 파일이다.
