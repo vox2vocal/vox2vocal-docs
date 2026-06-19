@@ -1,7 +1,7 @@
 # Vox2Vocal Git Policy
 
-문서 버전: `v2026.06.16`
-적용일: `2026-06-16`
+문서 버전: `v2026.06.19`
+적용일: `2026-06-19`
 상태: `Active`
 
 이 문서는 Vox2Vocal 독립 repository의 Git identity, commit convention, branch/PR workflow, local hook, GitHub Actions CI, main merge 운영 절차를 정의한다.
