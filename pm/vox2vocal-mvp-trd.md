@@ -1,15 +1,15 @@
 # Vox2Vocal MVP Technical Requirements Document
 
-문서 버전: v0.2
+문서 버전: v0.3
 작성일: 2026-06-15
 상태: 초안
 적용 skill: `trd-writer`
 기준 문서:
 
-- `pm/vox2vocal-mvp-prd.md` v0.12
+- `pm/vox2vocal-mvp-prd.md` v0.13
 - `pm/vox2vocal-mvp-feature-definition.md` v0.5
 - `pm/vox2vocal-mvp-page-flow-plan.md` v0.3
-- `pm/vox2vocal-mvp-api-data-contract-plan.md` v0.1
+- `pm/vox2vocal-mvp-api-data-contract-plan.md` v0.2
 
 ## Technical Summary
 
@@ -266,7 +266,15 @@ Worker gains P0 canonical job responsibilities:
 
 ### Engines
 
-Engines keep their current final-target composition. P0 implementation must define event contracts per stage and emit typed events with stable ids. Engine event payloads should include job id, stage, attempt, status, artifact refs, error codes, timing, confidence summary when relevant, and engine version.
+Engines keep their current final-target composition. P0 implementation must use the downstream engine event contracts in `pm/vox2vocal-mvp-api-data-contract-plan.md` v0.2 and emit typed events with stable ids. Engine event payloads include job id, stage, attempt, status, artifact refs, error codes, timing, confidence summary when relevant, engine version, and stage-specific payloads for `voice_pitch`, `target_pitch_mapping`, `preview_synthesis`, `render`, `preview_evaluation`, and `safety_rights`.
+
+P0 downstream engine event requirements:
+
+- Every event uses the shared `EngineStageEvent<TPayload>` envelope.
+- Worker normalizes each event into `StageResult` and updates `JobProjection` idempotently.
+- Engines never write job-state tables directly.
+- Unknown major schema versions are rejected; additive fields are stored as raw metadata for internal debugging.
+- Stage payloads must include success/failure fields, retryability, artifact refs, confidence summary, and user-safe reason mapping before engine/worker tickets are split.
 
 ### Safety Rights
 
@@ -296,7 +304,7 @@ P0 contract defaults:
 
 P0 contract freeze gate before `spec-to-tickets`:
 
-- `api-data-contract-planner` must turn the object-level contracts below into GraphQL and proto field-level schemas before backend/frontend tickets are split.
+- `api-data-contract-planner` output v0.2 defines GraphQL/API shape, proto/service names, downstream engine event payloads, playback constants, rights/risk launch checklist, `needs_review` SLA, and `PreviewArtifact` physical schema decision.
 - Generated contracts must define field names, nullability, enum values, pagination shape, idempotency behavior, error mapping, and schema version.
 - Ticketing must not start from endpoint names alone.
 
@@ -403,9 +411,10 @@ Playback event defaults:
 Playback anti-abuse and race rules:
 
 - Events are accepted only for the authenticated user, issued playback session, artifact, and job tuple.
-- `occurred_at` must be inside the playback session validity window. Late delivery may be accepted only when the event time was valid and the server receives it within a small flush grace window.
+- `occurred_at` must be inside the playback session validity window. Late delivery may be accepted only when the event time was valid and the server receives it within `PLAYBACK_LATE_FLUSH_GRACE_MS=15000`.
+- Events received after `PLAYBACK_STALE_SESSION_REJECT_AFTER_MS=expires_at+15000` are rejected.
 - Played ranges must satisfy `0 <= played_range_start_ms < played_range_end_ms <= preview_duration_ms`; invalid ranges are rejected and logged with a safe reason.
-- The server must reject or ignore impossible progress, such as played duration that exceeds wall-clock elapsed time plus tolerance, negative jumps without a seek event, or payload changes for an existing `event_id`.
+- The server must reject or ignore impossible progress, such as played duration that exceeds wall-clock elapsed time plus `PLAYBACK_WALL_CLOCK_TOLERANCE_MS=2000`, negative jumps without a seek event, or payload changes for an existing `event_id`.
 - Muted or background playback events may be stored for diagnostics but must not increase metric-eligible coverage.
 - Seek-loop replay of the same short segment must not increase unique timeline coverage beyond the distinct merged ranges.
 - If consent, rights, deletion, audit, or artifact status changes after URL issuance but before rating, `preview_played` and rating unlock must be recomputed against the latest blocking state.
@@ -438,6 +447,13 @@ For `Mist intro` at 28 seconds, this means at least 22.4 seconds of distinct pre
 - `submitTechnicalTags(jobId, tags)`
 
 User perception tags and internal technical tags must be stored separately. Rating submission is allowed only after `preview_played=true`. Ratings below 4 require at least one failure tag or `other`.
+
+`needs_review` SLA defaults:
+
+- `target_note_conflict`, `pitch_low_confidence`, and `preview_quality_needs_review` must be acknowledged within 1 business day and resolved within 3 business days.
+- `rights_ambiguous` and `suspicious_voice_or_lineage` must block playback immediately and be resolved before learner exposure.
+- Jobs unresolved after 7 calendar days move to the fallback state defined in the API/data contract plan, with a user-safe reason and internal audit record.
+- `needs_review` is not a P0 success state and cannot unlock primary rating until resolved.
 
 ### Consent, Deletion, Contact
 
@@ -500,6 +516,7 @@ Core tables or model groups:
 - `conversion_jobs`: canonical state, selected song/section, source asset, BPM/key snapshot, consent snapshot, rights snapshot.
 - `stage_results`: normalized stage ledger.
 - `artifact_refs`: storage pointer, data class, status, rights state, playback allowed, retention deadline.
+- `preview_artifacts`: separate physical table for self-voice preview lineage, section coverage, playback eligibility, quality status, and metric eligibility fields. P0 should not store this only as JSON inside `artifact_refs`.
 - `outbox_events`: pending engine requests after job commit.
 - `playback_sessions`: issued preview playback session, audit refs, playback progress, muted/app foreground flags, severe error status, unique timeline coverage.
 - `ratings`: artifact rating, prompt version, playback eligibility.
@@ -667,14 +684,14 @@ Runtime policy changes:
 
 ### Rollout
 
-1. Freeze field-level GraphQL/proto contracts with `api-data-contract-planner`.
+1. Freeze field-level GraphQL/proto contracts, downstream engine event payloads, playback telemetry constants, rights/risk launch checklist, and `PreviewArtifact` schema with `api-data-contract-planner`.
 2. Add additive database tables, DB grants, and read models behind feature flags.
 3. Implement consent records and job consent snapshot.
-4. Implement song package, section package, rights/risk evidence source of truth, and read path.
+4. Implement song package, section package, rights/risk evidence source of truth, launch checklist fields, and read path.
 5. Implement recorder/take review UI and upload session path.
 6. Implement `completeAudioUpload` and `conversion-job-state`.
-7. Implement transactional outbox and StageResult schema validation.
-8. Integrate `audio-ingest` and StageResult adapter.
+7. Implement transactional outbox, downstream engine event validation, and StageResult schema validation.
+8. Integrate `audio-ingest` and downstream StageResult adapters.
 9. Add partial-real pitch and preview pipeline with PreviewArtifact lineage verification.
 10. Add result playback, playback audit/session, rating, and failure tags.
 11. Add same-structure role-gated internal web routes for admin, review, governance.
@@ -713,6 +730,8 @@ Rollback must be operationally safe rather than only code rollback.
 - user-safe error code mapping
 - StageResult schema validation and enum compatibility
 - JobProjection, PreviewArtifact, PlaybackSession, and PlaybackEvent schema validation
+- Proto service/message mapping validation for `VoxAuthService`, `VoxConsentService`, `VoxCatalogService`, `VoxUploadService`, `VoxJobService`, `VoxPlaybackService`, `VoxReviewService`, and `VoxGovernanceService`
+- EngineStageEvent payload validation for `voice_pitch`, `target_pitch_mapping`, `preview_synthesis`, `render`, `preview_evaluation`, and `safety_rights`
 - playback anti-abuse range validation and stale session rejection
 
 ### Integration Tests
@@ -796,7 +815,6 @@ Rollback must be operationally safe rather than only code rollback.
 
 ## Open Technical Questions
 
-- What is the exact event schema for each downstream engine stage before StageResult normalization, beyond the P0 audio-ingest envelope?
 - If break-glass or contact plaintext reveal is ever enabled after P0, who becomes the second reviewer or security owner?
 
 ## References

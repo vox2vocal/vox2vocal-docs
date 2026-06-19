@@ -1,6 +1,6 @@
 # Vox2Vocal MVP PRD Draft
 
-문서 버전: v0.12
+문서 버전: v0.13
 작성일: 2026-06-13
 상태: 초안
 작성 기준: `pm-context` + `prd-writer` skill 기준, `prd-reviewer` readiness pass 반영
@@ -46,6 +46,7 @@
 - P0 내부 운영 결과물은 다운로드하지 않고 앱 안에서만 재생한다.
 - 보관 기간은 최소 1개월을 기준으로 둔다. raw audio는 장기 보관하지 않으며, raw audio를 제외한 분석/audit 데이터는 최대 1년 보관을 기준으로 검토한다.
 - P0 song package 필수 입력값은 title, artist, language, BPM, key, reference audio, source/provenance, rights clearance status, usage status, section map, target section start/end, reference pre-listen flag/scope, lyrics display flag/scope, lyrics sync flag, license expiry/re-review date로 확정한다.
+- P0 `Mist` learner exposure는 DB source of truth에 temporary approver, evidence ref, internal allowlist, allowed section, prohibited uses, kill-switch owner, complaint owner, re-review deadline이 저장되기 전까지 금지한다.
 - 필수 동의는 회원가입 또는 최초 로그인 시 1회 받을 수 있다. 단, 각 job은 현재 정책 version/scope와 일치하는 consent snapshot을 저장해야 하며, 정책 문서/동의 범위/version이 바뀌면 녹음 또는 job 제출 전에 재동의를 요구한다.
 - 녹음 화면의 원곡 듣기와 가사 표시는 기본적으로 차단한다. `reference_prelisten_allowed`, `lyrics_display_allowed`, `lyrics_sync_allowed` 같은 권리 플래그와 display scope가 명시적으로 허용될 때만 section-limited, app-only, signed, audited 방식으로 노출한다.
 - P0 기본값은 녹음 중 원곡 동시 재생을 허용하지 않는 것이다. 권리 플래그가 허용되더라도 원곡/reference audio는 녹음 전 section pre-listen으로 제공하고, 활성 녹음이 시작되면 재생을 멈춘다.
@@ -96,6 +97,21 @@ Sources: [U.S. Copyright Office AI Report](https://www.copyright.gov/ai/), [U.S.
 - The product must not clone or imitate Ken Kamikita's voice, a featured artist's voice, a celebrity voice, a character voice, or any third-party voice. The only allowed generated vocal identity is the submitting user's own voice.
 - If reference rights are uncertain, provider terms are unclear, or provenance is incomplete, the song package status must be `rights_blocked` and cannot be published to learners.
 - If a copyright or rights complaint is received, related reference audio, generated previews, and derivative artifacts must be blocked from playback while the policy owner reviews the case.
+
+P0 rights/risk launch checklist:
+
+| Field | Requirement |
+| --- | --- |
+| Temporary approver | Project owner/developer until a separate policy/right owner exists |
+| Evidence ref | DB field pointing to private operational evidence; no raw audio, lyrics, or playable URL in the evidence text |
+| Allowed users/groups | Internal allowlist only: project owner/developer, invited learners, invited educators/experts, QA/reviewer roles |
+| Allowed section | `Mist intro 0:00-0:28` only |
+| Prohibited uses | download, export, public sharing, marketing use, commercial release, third-party voice cloning, model training from reference audio, provider-ripped audio |
+| Re-review deadline | 30 calendar days from approval, or earlier if provider/source/license status changes |
+| Kill-switch owner | Project owner/developer until a separate ops owner exists |
+| Complaint owner | Project owner/developer until a separate policy/right owner exists |
+
+If any checklist field is missing, `Mist` must remain `rights_pending` or `rights_blocked` and cannot be selected by learners.
 
 ### Retention Draft
 
@@ -183,6 +199,9 @@ P0 threshold는 P0 운영 중 조정될 수 있지만, engineering handoff와 QA
 | Time to preview observation | P50 10분 이하, P95 30분 이하를 관찰 기준으로 기록 | P0 hard success metric은 아님 |
 | Timeout threshold | 60분 초과 | `failed` 또는 `failed_with_partial_artifacts` 후보 |
 | Deletion execution | retention deadline 이후 24시간 이내 deletion job 실행 | 실패 시 `deletion_failed`와 owner review |
+| Playback late flush grace | 15초 | 늦게 도착한 pause/end/background flush는 event time이 유효하고 15초 이내 수신된 경우만 인정 |
+| Playback wall-clock tolerance | 2초 | 실제 경과 시간보다 2초를 초과해 재생한 것으로 보이는 progress는 metric coverage에서 제외 또는 거절 |
+| Needs-review SLA | 1영업일 내 확인, 3영업일 내 해소, 7일 초과 시 fallback state | unresolved 상태는 P0 success와 rating unlock에서 제외 |
 
 ### Consent And Access Draft
 
@@ -460,6 +479,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 - The system must use the Quantified Thresholds Draft for trusted, low-confidence, excluded, disputed, and review-needed pitch ranges.
 - If the two target sources conflict, the system must use confidence-based handling, surface source attribution internally, and avoid overconfident scoring for disputed sections.
 - Low-confidence pitch segments must be surfaced in the result screen and evaluation report.
+- Review-needed pitch or target conflicts must enter `needs_review` and follow the review SLA before playback/rating eligibility can be released.
 
 ### FR-008 Target Pitch Mapping
 
@@ -484,6 +504,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 - The app should send playback progress every 1 second during active foreground, unmuted playback, and must flush progress on pause, seek, end, background, mute, or error.
 - Playback events must include event id, schema version, occurred-at timestamp, and session-scoped client sequence so the server can merge duplicate or out-of-order events.
 - The server must compute `preview_played=true` from merged distinct played ranges. Client-reported total playback time alone must not count as metric eligibility.
+- Late playback progress may count only within a 15-second flush grace window, and impossible playback progress beyond a 2-second wall-clock tolerance must be excluded or rejected.
 - If the rating is below 4, the user must be asked to select one or more failure reason tags.
 - P0 failure reason tags must include: `not_my_voice`, `not_song_like`, `pitch_wrong`, `timing_wrong`, `robotic_or_artifact`, `noise_or_clipping`, `too_short_or_incomplete`, `other`.
 - Playback failure is not a preview quality rating tag. It must be captured as a separate `playback_problem_reported` event.
@@ -499,6 +520,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 - Failed jobs must show stage, reason, and whether retry is allowed.
 - Partial jobs must show which output exists, which output failed, and whether the user can still play a preview.
 - Blocked jobs must show policy reason without exposing sensitive policy internals.
+- `needs_review` jobs must not unlock primary rating until resolved. Review-needed jobs must show a user-safe pending/review message and internally track owner, response target, fallback state, and audit record.
 
 ### FR-012 Preview Quality Decision
 
@@ -721,7 +743,7 @@ P0 final job decision policy:
 ### Safety And Policy
 
 - 본인 음성 확인은 P0에서 separated consent로 시작하고, 이후 active voice verification이나 voice CAPTCHA 수준까지 확장할 필요가 있는가?
-- reference audio source/provenance와 rights clearance status의 최종 승인자는 누구인가?
+- P0 이후 reference audio source/provenance와 rights clearance status의 permanent owner는 누구인가?
 - 최소 1개월 보관 이후 reference audio와 사용자 녹음의 자동 삭제, 연장, 접근 권한 정책은 어떻게 둘 것인가?
 - break-glass raw audio 접근은 누가 승인하고 어떤 incident 조건에서 허용할 것인가?
 - audit log 보관 기간과 접근 권한 최종 owner는 누가 될 것인가?
@@ -730,7 +752,6 @@ P0 final job decision policy:
 
 - "이 preview가 내 목소리처럼 들린다" 평가 문항의 visual placement와 microcopy를 결과 화면에서 어떻게 다듬을 것인가?
 - P0 confirmed failure tag 목록을 결과 화면에서 어떤 문구로 보여주고, `other` 자유입력의 개인정보/민감정보 유입을 어떻게 제한할 것인가?
-- `needs_review`로 들어간 low-confidence 또는 disputed target note 결과를 누가 어느 SLA로 해소할 것인가?
 
 ### Technical Scope
 

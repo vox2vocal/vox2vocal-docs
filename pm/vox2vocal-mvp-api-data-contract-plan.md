@@ -1,13 +1,13 @@
 # Vox2Vocal MVP API / Data Contract Plan
 
-문서 버전: v0.1
+문서 버전: v0.2
 작성일: 2026-06-15
 상태: 초안
 적용 skill: `api-data-contract-planner`
 기준 문서:
 
-- `pm/vox2vocal-mvp-prd.md` v0.12
-- `pm/vox2vocal-mvp-trd.md` v0.2
+- `pm/vox2vocal-mvp-prd.md` v0.13
+- `pm/vox2vocal-mvp-trd.md` v0.3
 - `pm/vox2vocal-mvp-feature-definition.md` v0.5
 - `pm/vox2vocal-mvp-page-flow-plan.md` v0.3
 
@@ -40,6 +40,47 @@ P0 contract principles:
 - Client-provided consent, rights, risk, song package revision, and reference asset refs are not authoritative.
 - All write APIs must define idempotency, validation, auth/permission, audit behavior, state transition effects, and user-safe error codes.
 - Every public response includes `schema_version`.
+- Proto/service names, downstream engine events, playback telemetry constants, rights/risk launch checks, and `needs_review` SLA are part of the contract freeze gate before implementation tickets.
+
+P0 playback telemetry constants:
+
+| Constant | Value | Purpose |
+| --- | --- | --- |
+| `PLAYBACK_PROGRESS_INTERVAL_MS` | `1000` | App foreground/unmuted progress heartbeat target |
+| `PLAYBACK_LATE_FLUSH_GRACE_MS` | `15000` | Late pause/end/background flush acceptance window after session expiry or network delay |
+| `PLAYBACK_WALL_CLOCK_TOLERANCE_MS` | `2000` | Maximum extra played time accepted beyond plausible wall-clock progress |
+| `PLAYBACK_MAX_EVENT_BATCH_SIZE` | `50` | If batched flush is introduced, reject batches above this size; P0 single-event mutation remains canonical |
+| `PLAYBACK_STALE_SESSION_REJECT_AFTER_MS` | `expires_at + 15000` | Reject progress events received after the session plus grace window |
+
+## Proto / Service Contract
+
+Internal service boundaries are proto-first. BFF GraphQL fields must map to these proto messages and services before backend, worker, or frontend implementation tickets are split.
+
+Proto source of truth:
+
+- Owning repo: `vox2vocal-api-gateway`
+- Suggested path: `proto/vox2vocal/p0/v1/*.proto`
+- Package prefix: `vox2vocal.p0.v1`
+- Generated clients: API Gateway owns generation and publishes compatible clients for BFF, User Service, and Worker.
+- Compatibility: additive fields only after P0 contract freeze; unknown major versions are rejected.
+
+| Service | Package | Main messages | Implementing owner | Notes |
+| --- | --- | --- | --- | --- |
+| `VoxAuthService` | `vox2vocal.p0.auth.v1` | `SignUpRequest/Response`, `LoginRequest/Response`, `GetMeRequest/Response` | `vox2vocal-user-service` via API Gateway | Existing auth contracts can be adapted but response roles/status must match this plan |
+| `VoxConsentService` | `vox2vocal.p0.consent.v1` | `GetConsentStatusRequest/Response`, `GrantConsentRequest/Response`, `GetContactFollowupCapabilityRequest/Response` | `vox2vocal-user-service` | Contact follow-up remains disabled capability only in P0 |
+| `VoxCatalogService` | `vox2vocal.p0.catalog.v1` | `ListSongPackagesRequest/Response`, `GetSongPackageRequest/Response`, `ListSongSectionsRequest/Response`, `GetSelectedSectionGuideRequest/Response` | Worker `conversion-job-state` read projection | Song/section read model includes rights and exposure decisions |
+| `VoxUploadService` | `vox2vocal.p0.upload.v1` | `CreateAudioUploadSessionRequest/Response`, `CompleteAudioUploadRequest/Response` | Worker `conversion-job-state` plus storage integration | `CompleteAudioUpload` is the job creation boundary |
+| `VoxJobService` | `vox2vocal.p0.job.v1` | `GetJobStatusRequest/Response`, `SubscribeJobStatusRequest/Response`, `GetJobResultRequest/Response`, `JobProjection`, `StageSummary`, `ArtifactSummary` | Worker `conversion-job-state` | BFF must not synthesize canonical job state |
+| `VoxPlaybackService` | `vox2vocal.p0.playback.v1` | `IssuePreviewPlaybackUrlRequest/Response`, `RecordPreviewPlaybackEventRequest/Response`, `ReportPlaybackProblemRequest/Response`, `PlaybackSession`, `PlaybackEvent` | Worker `conversion-job-state` plus storage/audit integration | Server computes `preview_played=true` |
+| `VoxReviewService` | `vox2vocal.p0.review.v1` | `ListReviewableJobsRequest/Response`, `GetReviewDetailRequest/Response`, `SubmitTechnicalTagsRequest/Response` | Worker `conversion-job-state` | Review access requires consent and role gate |
+| `VoxGovernanceService` | `vox2vocal.p0.governance.v1` | `RequestDeletionRequest/Response`, `GetDeletionStatusRequest/Response`, `CreateSongPackageRequest/Response`, `UploadReferenceAudioSessionRequest/Response`, `UpdateRightsStateRequest/Response`, `CreateRiskAcceptanceRequest/Response`, `BlockSongPackageRequest/Response` | Worker `conversion-job-state` plus platform/storage integration | Admin project is Later; P0 may use seed/admin-write paths |
+
+Proto implementation ticket prerequisites:
+
+- Define enum values for job state, rights state, stage status, playback event type, consent type, error code, and artifact data class.
+- Add mapping tests for GraphQL request/response to proto request/response.
+- Add mapping tests for proto `JobProjection` to worker read model.
+- Add unknown enum fallback tests and unknown major schema rejection tests.
 
 ## Shared Types
 
@@ -713,11 +754,12 @@ type StageSummary = {
 
 - Validation:
   - event tuple must match authenticated user, playback session, artifact, and job.
-  - `occurred_at` must be inside session validity window or accepted within flush grace.
+  - `occurred_at` must be inside session validity window or accepted within `PLAYBACK_LATE_FLUSH_GRACE_MS=15000`.
+  - events received after `PLAYBACK_STALE_SESSION_REJECT_AFTER_MS=expires_at+15000` must be rejected.
   - played range must satisfy `0 <= start < end <= preview_duration_ms`.
   - muted or background playback does not increase metric-eligible coverage.
   - duplicated `event_id` is idempotent only if payload is identical.
-  - impossible progress is ignored or rejected.
+  - impossible progress is ignored or rejected when played duration exceeds plausible wall-clock elapsed time by more than `PLAYBACK_WALL_CLOCK_TOLERANCE_MS=2000`.
   - latest consent/rights/deletion/audit/artifact state is rechecked before rating unlock.
 - Error cases: `auth_required`, `validation_failed`, `playback_blocked`, `unsupported_schema_version`, `rating_locked`.
 - Compatibility: clients may send more frequent progress, but server computes coverage from distinct ranges only.
@@ -1010,6 +1052,107 @@ type StageSummary = {
 - Error cases: `role_denied`, `validation_failed`, `audit_failed`.
 - Compatibility: taxonomy version required.
 
+## Downstream Engine Event Contract
+
+All downstream engine stages must emit the shared envelope below before Worker normalizes the event into `StageResult`. Engines may add stage-specific payload fields, but they must not remove or rename required fields during P0.
+
+```ts
+type EngineStageEvent<TPayload> = {
+  schema_version: string
+  event_id: string
+  trace_id: string
+  job_id: string
+  audio_asset_id?: string
+  target_section_id: string
+  attempt: number
+  producer: string
+  engine_name: string
+  engine_version: string
+  stage:
+    | "voice_pitch"
+    | "target_pitch_mapping"
+    | "preview_synthesis"
+    | "render"
+    | "preview_evaluation"
+    | "safety_rights"
+  status: "started" | "succeeded" | "failed" | "blocked" | "needs_review"
+  occurred_at: string
+  duration_ms?: number
+  retryable?: boolean
+  artifact_refs?: ArtifactSummary[]
+  confidence_summary?: Record<string, number>
+  error?: {
+    code: string
+    user_safe_reason: string
+    retryable: boolean
+  }
+  payload: TPayload
+}
+```
+
+Required stage payloads:
+
+| Stage | Success payload minimum | Failure / review payload minimum | Required artifact refs |
+| --- | --- | --- | --- |
+| `voice_pitch` | `canonical_audio_ref`, `f0_timeseries_ref`, `pitch_report_ref`, `voiced_coverage_ratio`, `median_confidence`, `pitch_range_hz`, `detected_key?` | `failure_code`, `failed_range_ms?`, `confidence_summary`, `user_safe_reason`, `retryable` | `pitch_report`, `f0_timeseries` |
+| `target_pitch_mapping` | `reference_asset_id`, `section_revision_id`, `target_note_sequence_ref`, `mapping_report_ref`, `bpm`, `key`, `target_source`, `coverage_ratio`, `median_confidence` | `source_conflict_ranges`, `conflict_ratio`, `confidence_summary`, `user_safe_reason`, `retryable` | `target_note_sequence`, `mapping_report` |
+| `preview_synthesis` | `pipeline_mode`, `generation_mode_version`, `input_pitch_report_ref`, `target_note_sequence_ref`, `provisional_vocal_ref`, `lineage_source_event_id`, `section_coverage_ratio`, `self_voice_lineage_confidence` | `synthesis_failure_code`, `lineage_status`, `confidence_summary`, `user_safe_reason`, `retryable` | `provisional_vocal`, `synthesis_report` |
+| `render` | `render_artifact_ref`, `format`, `duration_ms`, `sample_rate`, `loudness_lufs`, `peak_dbfs`, `clipping_detected`, `preview_duration_ms` | `render_failure_code`, `partial_render_ref?`, `user_safe_reason`, `retryable` | `rendered_preview`, `render_report` |
+| `preview_evaluation` | `preview_artifact_id`, `quality_status`, `section_coverage_ratio`, `pitch_match_summary`, `timing_match_summary`, `artifact_warning_codes`, `needs_review_reasons` | `evaluation_failure_code`, `quality_status`, `needs_review_reasons`, `user_safe_reason`, `retryable` | `quality_report` |
+| `safety_rights` | `rights_snapshot_id`, `risk_acceptance_id?`, `allow_decision`, `playback_allowed`, `blocked_reason?`, `audit_id` | `deny_reason`, `rights_state`, `audit_id`, `user_safe_reason`, `retryable=false` | `safety_report` |
+
+User-safe reason mapping must be stable:
+
+- `voice_not_detected`: no usable voice in submitted section.
+- `pitch_low_confidence`: pitch could not be measured confidently.
+- `target_note_conflict`: reference analysis and engine note sequence disagree above threshold.
+- `preview_generation_failed`: self-voice preview could not be generated.
+- `render_failed`: preview audio could not be rendered.
+- `preview_quality_needs_review`: preview exists but requires internal review before playback/rating.
+- `rights_blocked`: rights/risk policy blocked processing or playback.
+- `audit_failed`: required audit write failed; operation failed closed.
+
+Worker adapter requirements:
+
+- Deduplicate by `event_id`, `stage`, `job_id`, and `attempt`.
+- Reject unknown major `schema_version`.
+- Store unknown additive fields as raw metadata for internal debugging without surfacing them to users.
+- Normalize each event into one `StageResult` row and update `JobProjection` idempotently.
+- Never allow engine events to bypass consent, rights, deletion, or audit gates.
+
+## P0 Rights / Risk Launch Checklist
+
+`Mist` cannot be selectable for learners until both `rights_records` and `risk_acceptance_records` contain the following fields in the DB source of truth.
+
+| Field | P0 default / requirement |
+| --- | --- |
+| `rights_state` | `unlicensed_internal_risk_accepted` for internal P0 only, or `published` only after explicit rights clearance |
+| `temporary_approver` | Project owner/developer until a separate policy/right owner exists |
+| `evidence_ref` | DB field pointing to private operational evidence; no raw audio, lyrics, or playable URL in the evidence text |
+| `allowed_users_or_groups` | Internal allowlist only: project owner/developer, invited learners, invited educators/experts, QA/reviewer roles |
+| `allowed_section_ids` | `intro` only for P0 learner exposure |
+| `allowed_duration_ms` | `28000` for `Mist intro`; re-review if registered asset duration or cut point changes |
+| `prohibited_uses` | download, export, public sharing, marketing use, commercial release, third-party voice cloning, model training from reference audio, provider-ripped audio |
+| `re_review_deadline` | 30 calendar days from approval, or earlier if provider/source/license status changes |
+| `kill_switch_owner` | Project owner/developer until a separate ops owner exists |
+| `complaint_owner` | Project owner/developer until a separate policy/right owner exists |
+
+If any required checklist field is missing, learner selection, job creation, reference pre-listen, generated preview playback URL issuance, and rating unlock must fail closed.
+
+## Review SLA And Needs-Review Policy
+
+`needs_review` is a non-terminal holding state for low-confidence, disputed, suspicious, or rights-ambiguous jobs. It is not a P0 success state and cannot unlock primary rating until resolved.
+
+| Review reason | Primary owner | Response target | Fallback if unresolved |
+| --- | --- | --- | --- |
+| `target_note_conflict` | `educator_or_expert` or product owner | acknowledge within 1 business day, resolve within 3 business days | mark `failed_with_partial_artifacts`; playback remains locked unless preview eligibility is explicitly released |
+| `pitch_low_confidence` | engine developer | acknowledge within 1 business day, resolve within 3 business days | mark `failed_with_partial_artifacts`; keep pitch artifact internal |
+| `preview_quality_needs_review` | product QA or educator/expert | acknowledge within 1 business day, resolve within 3 business days | mark `failed_with_partial_artifacts`; do not count in success metrics |
+| `rights_ambiguous` | temporary rights approver / project owner | immediate block, resolve before any learner exposure | mark `blocked`; playback and rating remain locked |
+| `suspicious_voice_or_lineage` | project owner plus engine developer | immediate block, resolve before playback | mark `blocked`; preserve audit evidence |
+
+Jobs still unresolved after 7 calendar days must move out of `needs_review` into the fallback state above with a user-safe reason and internal audit record.
+
 ## Data Model Changes
 
 ### User Service Owned
@@ -1035,7 +1178,7 @@ type StageSummary = {
 - `conversion_jobs`: canonical state, snapshots, source asset, selected section, terminal metadata.
 - `stage_results`: normalized stage ledger.
 - `artifact_refs`: storage pointer, data class, retention, deletion, playback eligibility.
-- `preview_artifacts`: lineage and preview-specific metadata, or equivalent typed artifact row.
+- `preview_artifacts`: separate physical table for lineage, playback eligibility, section coverage, quality, and preview-specific metadata. P0 does not store this only as JSON inside `artifact_refs` because metric eligibility, review queues, and playback gating need typed indexed fields.
 - `playback_sessions`: signed URL audit refs and unique timeline coverage.
 - `playback_events`: event id, sequence, range, muted/foreground/error.
 - `ratings`: primary rating, prompt version, metric eligibility.
@@ -1046,7 +1189,7 @@ type StageSummary = {
 
 ## Migration Plan
 
-1. Add nullable/additive tables for song package, section map, rights/risk, upload sessions, jobs, stage results, artifact refs, playback sessions/events, ratings, tags, deletion evidence, and outbox.
+1. Add nullable/additive tables for song package, section map, rights/risk, upload sessions, jobs, stage results, artifact refs, preview artifacts, playback sessions/events, ratings, tags, deletion evidence, and outbox.
 2. Add User Service consent records and disabled contact follow-up capability state.
 3. Add DB roles/grants so BFF has read-only projection access, worker writes conversion schema, User Service writes user/consent schema, engines write no job tables.
 4. Deploy read paths and disabled feature flags.
@@ -1144,10 +1287,6 @@ Analytics payload rules:
 
 ## Open Contract Questions
 
-- What exact proto package and service names will API Gateway use for P0 job, song package, playback, review, and governance contracts?
-- What is the exact downstream engine event schema for `voice-pitch`, `target_pitch_mapping`, `preview_synthesis`, `render`, `preview_evaluation`, and `safety_rights` before StageResult normalization?
-- What is the flush grace window for late playback progress events?
-- What tolerance should server use for impossible playback progress versus wall-clock elapsed time?
-- Who is the temporary P0 rights/risk approver for `unlicensed_internal_risk_accepted`, and where is the evidence ref stored operationally?
-- What SLA should apply to `needs_review` jobs before they become failed, blocked, or manually released?
-- Should `PreviewArtifact` be a separate physical table or a typed row in `artifact_refs` with JSON metadata for P0?
+- If break-glass raw/canonical audio access or contact plaintext reveal is ever enabled after P0, who becomes the required second reviewer or security owner?
+- Which exact engine repository owns each stage payload version once implementation starts?
+- Should a future batched playback telemetry endpoint be added after P0, or should clients continue sending single `recordPreviewPlaybackEvent` mutations?
