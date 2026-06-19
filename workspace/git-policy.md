@@ -58,6 +58,35 @@ git config user.email "gitbyul@gmail.com"
 git config core.hooksPath .githooks
 ```
 
+## Local Agent Workflow
+
+다른 에이전트가 로컬에서 작업하더라도 Git commit identity는 항상 `gitbyul <gitbyul@gmail.com>`로 고정한다. 에이전트별 이름, 로컬 머신 사용자, GitHub noreply, bot identity는 commit author 또는 committer로 남기지 않는다.
+
+에이전트는 작업을 시작하기 전에 대상 repository 안에서 아래 명령을 실행한다.
+
+```bash
+scripts/install-git-policy-hooks.sh
+scripts/validate-git-policy.sh --check-config
+```
+
+설정이 수동으로 필요한 경우 아래 값을 repository-local config로 지정한다.
+
+```bash
+git config user.name "gitbyul"
+git config user.email "gitbyul@gmail.com"
+git config core.hooksPath .githooks
+```
+
+에이전트 작업 규칙:
+
+- `git config --global`에 의존하지 않고 각 repository의 local config를 확인한다.
+- `--author`, `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL`로 다른 identity를 주입하지 않는다.
+- commit 전 `scripts/validate-git-policy.sh --check-config`를 실행한다.
+- commit 후 `scripts/validate-git-policy.sh --commit HEAD` 또는 `scripts/validate-git-policy.sh --range origin/main HEAD`를 실행한다.
+- PR 생성 전 push 대상 branch가 정책 형식을 만족하는지 확인한다.
+- GitHub UI에서 자기 PR에 `Approve`를 누르지 않는다. GitHub는 PR 작성자가 자기 PR을 approve하는 것을 허용하지 않으며, `Can not approve your own pull request`는 정책 위반이 아니라 GitHub 기본 동작이다.
+- Required approvals는 `0`으로 운영한다. 이 정책에서 강제하는 것은 PR 존재, Git policy check, 고정된 author/committer이지 다른 사람의 승인 필수가 아니다.
+
 ## Commit Message
 
 ### 일반 코드 Repo
@@ -167,7 +196,7 @@ GitHub UI가 생성하는 squash commit 또는 merge commit은 committer가 GitH
 1. ticket branch에서 정책을 통과한 커밋을 만든다.
 2. ticket branch를 push하고 PR을 생성한다.
 3. PR에서 `git-policy` check를 통과시킨다.
-4. 필요한 코드 리뷰를 완료한다.
+4. 필요한 코드 리뷰나 agent review가 있으면 완료한다.
 5. GitHub UI merge 버튼을 누르지 않는다.
 6. `gitbyul` 로컬 환경에서 PR branch를 `main`에 fast-forward로 반영한다.
 7. 승인된 PR 번호를 명시한 뒤 `main`을 push한다.
@@ -183,6 +212,10 @@ GIT_POLICY_ALLOW_MAIN_MERGE_PUSH=1 GIT_POLICY_PR_NUMBER=<number> git push origin
 ```
 
 이 예외는 `main`에서 바로 개발/커밋/push하는 것을 허용한다는 뜻이 아니다. 이미 PR과 CI를 통과한 branch를 `gitbyul` 계정으로 최종 반영하기 위한 병합 절차다.
+
+GitHub UI merge, `gh pr merge --merge`, `gh pr merge --squash`, `gh pr merge --rebase`는 사용하지 않는다. 이러한 방식은 GitHub가 merge/squash/rebase commit을 만들거나 committer를 GitHub 계정으로 기록할 수 있으므로 최종 `main` history의 committer 고정 정책과 충돌할 수 있다.
+
+PR 작성자와 merge 수행자가 모두 `gitbyul`이어도 허용한다. 같은 작성자가 PR을 만들고 merge하는 경우에도 GitHub에서 자기 PR에 approve review를 남길 필요는 없다.
 
 ## Policy Files
 
@@ -293,6 +326,7 @@ bash scripts/validate-git-policy.sh --range "$base_sha" "$head_sha"
 - Block force pushes
 - Restrict deletions
 - Restrict updates to `gitbyul` only
+- Required approvals: `0`
 
 PR 필수 정책은 운영상 필수다. 단, GitHub UI merge를 사용하지 않고 로컬 fast-forward merge를 사용하려면 `Require a pull request before merging`을 무조건 non-bypass로 켜면 의도한 `gitbyul` 로컬 병합 push도 차단될 수 있다.
 
@@ -302,6 +336,15 @@ PR 필수 정책은 운영상 필수다. 단, GitHub UI merge를 사용하지 �
 - bypass 구성이 불가능한 경우 `Require status checks`, `Restrict updates to gitbyul`, local `pre-push`의 main push 예외 변수, 운영 절차로 PR 필수를 강제한다.
 
 문서 repo는 기존 운영처럼 직접 문서 커밋을 허용할 수 있다. 다만 force push 금지, deletion 금지, identity/message validator는 유지한다.
+
+동일 작성자 PR을 허용하려면 아래 review 설정은 끈다.
+
+- Required approvals `1` 이상
+- Require review from specific teams
+- Require review from Code Owners
+- Require approval of the most recent reviewable push
+
+위 설정을 켜면 `gitbyul` 혼자 PR을 만들고 병합하는 운영과 충돌한다.
 
 권장 설정:
 

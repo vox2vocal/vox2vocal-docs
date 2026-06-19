@@ -347,6 +347,17 @@ Vox2Vocal workspace는 monorepo가 아니라 MSA 구조다. 각 하위 폴더는
 scripts/install-git-policy-hooks.sh
 ```
 
+다른 에이전트가 로컬에서 작업하더라도 commit author와 committer는 `gitbyul <gitbyul@gmail.com>`로 고정한다. 에이전트 고유 이름, bot 계정, GitHub noreply, 로컬 머신 이메일을 commit identity로 남기지 않는다.
+
+에이전트는 commit 전후로 아래를 확인한다.
+
+```bash
+scripts/validate-git-policy.sh --check-config
+scripts/validate-git-policy.sh --commit HEAD
+```
+
+GitHub에서 자기 PR에 `Approve`를 누르지 않는다. `Can not approve your own pull request`는 GitHub 기본 동작이며, Required approvals를 `0`으로 운영하면 자기 approve 없이 PR을 병합할 수 있다.
+
 일반 코드 repo의 커밋 메시지는 ticket을 필수로 포함한다.
 
 ```txt
@@ -393,6 +404,8 @@ chore/V2V-000-git-policy-pr-flow
 ```bash
 GIT_POLICY_ALLOW_MAIN_MERGE_PUSH=1 GIT_POLICY_PR_NUMBER=<number> git push origin main
 ```
+
+`gh pr merge` 또는 GitHub UI merge는 사용하지 않는다. GitHub가 생성하는 merge/squash/rebase commit은 committer 고정 정책과 충돌할 수 있다.
 
 문서 repo는 기존 운영처럼 직접 문서 커밋을 허용할 수 있다. 단, commit message와 body 규칙, 문서 버전업 전 선행 커밋 규칙은 반드시 지킨다.
 
