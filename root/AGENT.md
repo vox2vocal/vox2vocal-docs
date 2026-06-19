@@ -1,5 +1,9 @@
 # Vox2Vocal Agent Index
 
+문서 버전: v0.1
+작성일: 2026-06-19
+기반 문서: 없음
+
 이 파일은 Vox2Vocal 작업을 시작하는 에이전트가 프로젝트 구조, 기술 스택, 관련 문서를 어떤 순서로 읽어야 하는지 안내한다.
 
 ## 1. 먼저 작업 범위를 정한다
@@ -9,6 +13,7 @@
 | 경로 | 역할 | 주요 스택 |
 | --- | --- | --- |
 | `app` | Expo React Native App/Web | Expo 56, React 19, React Native 0.85, Expo Router, Tamagui, React Query, Zustand, MMKV |
+| `vox2vocal-admin` | 관리자 기능/페이지 전용 프로젝트 | App과 별도로 작성, 관리자 운영 콘솔/내부 도구 |
 | `bff-server` | GraphQL BFF | NestJS 11, GraphQL, Apollo Server, class-validator, gRPC client |
 | `api-gateway` | 내부 API Gateway | NestJS 11, gRPC server/client, `@nestjs/jwt`, RxJS, ConfigModule |
 | `user-service` | 사용자 도메인 서비스 | NestJS 11, CQRS, gRPC, Prisma, PostgreSQL, Argon2 |
@@ -21,6 +26,8 @@
 | `engine-voice-pitch` | 피치 분석 엔진 | F0 추정, pitch contour 정제, MIDI note 변환 |
 
 작업이 여러 프로젝트를 건드리면 호출 흐름을 먼저 따라간다.
+
+관리자 기능이나 관리자 페이지는 `vox2vocal-admin`에서 App과 분리해 작성한다. 사용자용 `vox2vocal-app` 내부 route/page에 관리자 화면을 섞지 않는다.
 
 ```txt
 app
@@ -186,6 +193,10 @@ engine-audio-ingest
 - [vox2vocal-app/README.md](vox2vocal-app/README.md)
 
 Expo는 버전 변화가 잦으므로 `vox2vocal-app/AGENTS.md`의 Expo 문서 확인 지침을 우선한다.
+
+### 관리자 기능/페이지 작업
+
+관리자 기능이나 관리자 페이지 작업은 `vox2vocal-admin` 프로젝트에서 진행한다. 사용자용 App과 별도 프로젝트로 관리하며, `vox2vocal-app`에는 관리자 route/page를 추가하지 않는다.
 
 ### Agent Skill 작업
 
