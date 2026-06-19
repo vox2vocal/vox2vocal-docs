@@ -1,15 +1,15 @@
 # Vox2Vocal MVP API / Data Contract Plan
 
-문서 버전: v0.2
+문서 버전: v0.3
 작성일: 2026-06-15
 상태: 초안
 적용 skill: `api-data-contract-planner`
 기준 문서:
 
-- `pm/vox2vocal-mvp-prd.md` v0.13
-- `pm/vox2vocal-mvp-trd.md` v0.3
-- `pm/vox2vocal-mvp-feature-definition.md` v0.5
-- `pm/vox2vocal-mvp-page-flow-plan.md` v0.3
+- `pm/vox2vocal-mvp-prd.md` v0.14
+- `pm/vox2vocal-mvp-trd.md` v0.4
+- `pm/vox2vocal-mvp-feature-definition.md` v0.6
+- `pm/vox2vocal-mvp-page-flow-plan.md` v0.4
 
 ## Behavior Supported
 
@@ -232,19 +232,36 @@ type StageSummary = {
     | "audio_ingest"
     | "section_validation"
     | "target_pitch_mapping"
-    | "user_pitch_extraction"
+    | "voice_pitch"
     | "preview_synthesis"
     | "render"
     | "preview_evaluation"
-    | "safety_rights"
+    | "preflight_safety_rights"
+    | "post_render_safety_rights"
     | "retention_deletion"
-  status: "queued" | "running" | "succeeded" | "failed" | "blocked" | "skipped"
+  status: "queued" | "running" | "succeeded" | "failed" | "blocked" | "needs_review" | "skipped"
   error_code?: string
   retryable?: boolean
   timing_ms?: number
   updated_at: string
 }
 ```
+
+Canonical stage names:
+
+- `voice_pitch` is the only P0 pitch extraction stage name. Do not use `user_pitch_extraction` in new contracts or tickets.
+- `preflight_safety_rights` is a synchronous gate before package exposure, upload completion, engine request, reference pre-listen, and preview playback URL issuance.
+- `post_render_safety_rights` is the downstream post-render stage that validates a generated preview artifact before playback/rating eligibility.
+
+Engine event to StageResult status mapping:
+
+| Engine event status | StageSummary status | JobProjection effect |
+| --- | --- | --- |
+| `started` | `running` | job remains `processing` |
+| `succeeded` | `succeeded` | stage may advance job or artifact availability |
+| `failed` | `failed` | final state depends on artifact availability and final decision policy |
+| `blocked` | `blocked` | job/artifact becomes `blocked`; playback/rating locked |
+| `needs_review` | `needs_review` | job becomes `needs_review`; playback/rating locked until review release |
 
 ## API Contracts
 
@@ -749,17 +766,21 @@ type StageSummary = {
   unique_timeline_coverage_ratio: number
   preview_played: boolean
   rating_unlocked: boolean
+  rating_unlock_expires_at?: string
 }
 ```
 
 - Validation:
   - event tuple must match authenticated user, playback session, artifact, and job.
+  - metric-eligible coverage is computed per single playback session only; P0 must not aggregate coverage across multiple playback sessions.
   - `occurred_at` must be inside session validity window or accepted within `PLAYBACK_LATE_FLUSH_GRACE_MS=15000`.
   - events received after `PLAYBACK_STALE_SESSION_REJECT_AFTER_MS=expires_at+15000` must be rejected.
   - played range must satisfy `0 <= start < end <= preview_duration_ms`.
   - muted or background playback does not increase metric-eligible coverage.
   - duplicated `event_id` is idempotent only if payload is identical.
   - impossible progress is ignored or rejected when played duration exceeds plausible wall-clock elapsed time by more than `PLAYBACK_WALL_CLOCK_TOLERANCE_MS=2000`.
+  - severe playback error codes are `decode_error`, `network_stall_unrecovered`, `signed_url_denied`, `artifact_missing`, `duration_mismatch`, `integrity_mismatch`, and `player_crash`.
+  - severe playback errors keep diagnostics but revoke rating unlock for that playback session.
   - latest consent/rights/deletion/audit/artifact state is rechecked before rating unlock.
 - Error cases: `auth_required`, `validation_failed`, `playback_blocked`, `unsupported_schema_version`, `rating_locked`.
 - Compatibility: clients may send more frequent progress, but server computes coverage from distinct ranges only.
@@ -793,6 +814,9 @@ type StageSummary = {
 - Validation:
   - `preview_played=true` must be computed by server.
   - playback session must belong to same user/job/artifact.
+  - playback session coverage must have reached threshold within that same playback session.
+  - rating submission must use the same playback session that unlocked rating.
+  - rating must be submitted before `rating_unlock_expires_at`, which defaults to 15 minutes after `rating_unlocked_at`.
   - latest consent/rights/deletion/audit/artifact state must still allow rating.
   - rating 1-3 requires failure tags before rating flow is complete.
 - Error cases: `rating_locked`, `playback_blocked`, `validation_failed`, `audit_failed`.
@@ -1074,7 +1098,7 @@ type EngineStageEvent<TPayload> = {
     | "preview_synthesis"
     | "render"
     | "preview_evaluation"
-    | "safety_rights"
+    | "post_render_safety_rights"
   status: "started" | "succeeded" | "failed" | "blocked" | "needs_review"
   occurred_at: string
   duration_ms?: number
@@ -1099,7 +1123,9 @@ Required stage payloads:
 | `preview_synthesis` | `pipeline_mode`, `generation_mode_version`, `input_pitch_report_ref`, `target_note_sequence_ref`, `provisional_vocal_ref`, `lineage_source_event_id`, `section_coverage_ratio`, `self_voice_lineage_confidence` | `synthesis_failure_code`, `lineage_status`, `confidence_summary`, `user_safe_reason`, `retryable` | `provisional_vocal`, `synthesis_report` |
 | `render` | `render_artifact_ref`, `format`, `duration_ms`, `sample_rate`, `loudness_lufs`, `peak_dbfs`, `clipping_detected`, `preview_duration_ms` | `render_failure_code`, `partial_render_ref?`, `user_safe_reason`, `retryable` | `rendered_preview`, `render_report` |
 | `preview_evaluation` | `preview_artifact_id`, `quality_status`, `section_coverage_ratio`, `pitch_match_summary`, `timing_match_summary`, `artifact_warning_codes`, `needs_review_reasons` | `evaluation_failure_code`, `quality_status`, `needs_review_reasons`, `user_safe_reason`, `retryable` | `quality_report` |
-| `safety_rights` | `rights_snapshot_id`, `risk_acceptance_id?`, `allow_decision`, `playback_allowed`, `blocked_reason?`, `audit_id` | `deny_reason`, `rights_state`, `audit_id`, `user_safe_reason`, `retryable=false` | `safety_report` |
+| `post_render_safety_rights` | `rights_snapshot_id`, `risk_acceptance_id?`, `allow_decision`, `playback_allowed`, `blocked_reason?`, `audit_id`, `preview_artifact_id` | `deny_reason`, `rights_state`, `audit_id`, `user_safe_reason`, `retryable=false` | `safety_report` |
+
+`preflight_safety_rights` is not a downstream engine event. It is a synchronous API/worker gate that must write an audit decision before package exposure, `completeAudioUpload`, engine request publication, reference pre-listen URL issuance, and preview playback URL issuance.
 
 User-safe reason mapping must be stable:
 
@@ -1128,7 +1154,7 @@ Worker adapter requirements:
 | --- | --- |
 | `rights_state` | `unlicensed_internal_risk_accepted` for internal P0 only, or `published` only after explicit rights clearance |
 | `temporary_approver` | Project owner/developer until a separate policy/right owner exists |
-| `evidence_ref` | DB field pointing to private operational evidence; no raw audio, lyrics, or playable URL in the evidence text |
+| `evidence_ref` | `governance_evidence_records.evidence_ref` formatted as `evidence://governance/{evidence_record_id}` |
 | `allowed_users_or_groups` | Internal allowlist only: project owner/developer, invited learners, invited educators/experts, QA/reviewer roles |
 | `allowed_section_ids` | `intro` only for P0 learner exposure |
 | `allowed_duration_ms` | `28000` for `Mist intro`; re-review if registered asset duration or cut point changes |
@@ -1138,6 +1164,34 @@ Worker adapter requirements:
 | `complaint_owner` | Project owner/developer until a separate policy/right owner exists |
 
 If any required checklist field is missing, learner selection, job creation, reference pre-listen, generated preview playback URL issuance, and rating unlock must fail closed.
+
+Governance evidence record contract:
+
+```ts
+type GovernanceEvidenceRecord = {
+  evidence_record_id: string
+  evidence_ref: string
+  evidence_type: "rights_source" | "risk_acceptance" | "complaint" | "re_review" | "kill_switch"
+  subject_type: "song_package" | "reference_asset" | "section" | "preview_artifact"
+  subject_id: string
+  storage_location: "db_private_text" | "private_object_metadata" | "ticket_ref"
+  summary: string
+  source_uri?: string
+  source_provider?: string
+  source_terms_version?: string
+  audit_id: string
+  created_by: string
+  created_at: string
+  expires_at?: string
+  re_review_deadline?: string
+}
+```
+
+Evidence restrictions:
+
+- Evidence text must not include raw audio, full lyrics, generated preview URLs, signed URLs, tokens, contact plaintext, or playable reference URLs.
+- `rights_records.evidence_ref` and `risk_acceptance_records.evidence_ref` must point to an existing `governance_evidence_records` row before learner exposure.
+- Audit records must link actor, action, evidence ref, package id, reference asset id, allowed users/groups, and decision result.
 
 ## Review SLA And Needs-Review Policy
 
@@ -1172,6 +1226,7 @@ Jobs still unresolved after 7 calendar days must move out of `needs_review` into
 - `reference_assets`: object key, checksum, duration, provenance, uploader, retention deadline.
 - `rights_records`: rights state, allowed/prohibited uses, evidence ref, approver, expiry/re-review, complaint owner.
 - `risk_acceptance_records`: allowlist, sections, duration, kill-switch owner, re-review deadline.
+- `governance_evidence_records`: private evidence metadata for rights source, risk acceptance, complaints, re-review, and kill-switch decisions.
 - `upload_sessions`: object key, owner, content type, expiry, selected song/section, source type.
 - `audio_assets`: source object, checksum, duration, owner, canonical object ref after ingest.
 - `job_consent_snapshots`: immutable consent/policy refs.
@@ -1220,6 +1275,12 @@ Backward compatibility:
 - `outbox_events(status, next_attempt_at, event_type)`.
 - `artifact_refs(job_id, data_class, playback_allowed, retention_deadline)`.
 - `preview_artifacts(job_id, pipeline_mode, mock_fixture_used, section_id)`.
+- `preview_artifacts(artifact_id)` unique.
+- `preview_artifacts(job_id, artifact_id)` unique.
+- `preview_artifacts(job_id, playback_blocked, lineage_verification_status)`.
+- `preview_artifacts(quality_status, lineage_verification_status, section_coverage_ratio)`.
+- `preview_artifacts(retention_deadline, deletion_state)`.
+- Optional partial index where supported: metric-eligible candidates where `mock_fixture_used=false`, `section_limited=true`, `playback_blocked=false`, and `lineage_verification_status='verified'`.
 - `playback_sessions(playback_session_id, artifact_id, user_id, expires_at)`.
 - `playback_events(playback_session_id, event_id)` unique and `(playback_session_id, client_sequence)`.
 - `ratings(job_id, artifact_id, user_id, rating_prompt_version)`.

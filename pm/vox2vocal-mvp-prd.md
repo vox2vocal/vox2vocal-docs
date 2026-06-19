@@ -1,6 +1,6 @@
 # Vox2Vocal MVP PRD Draft
 
-문서 버전: v0.13
+문서 버전: v0.14
 작성일: 2026-06-13
 상태: 초안
 작성 기준: `pm-context` + `prd-writer` skill 기준, `prd-reviewer` readiness pass 반영
@@ -103,7 +103,7 @@ P0 rights/risk launch checklist:
 | Field | Requirement |
 | --- | --- |
 | Temporary approver | Project owner/developer until a separate policy/right owner exists |
-| Evidence ref | DB field pointing to private operational evidence; no raw audio, lyrics, or playable URL in the evidence text |
+| Evidence ref | `governance_evidence_records.evidence_ref`, formatted as `evidence://governance/{evidence_record_id}`; no raw audio, lyrics, or playable URL in the evidence text |
 | Allowed users/groups | Internal allowlist only: project owner/developer, invited learners, invited educators/experts, QA/reviewer roles |
 | Allowed section | `Mist intro 0:00-0:28` only |
 | Prohibited uses | download, export, public sharing, marketing use, commercial release, third-party voice cloning, model training from reference audio, provider-ripped audio |
@@ -501,10 +501,12 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 - The system must only show the rating prompt after `preview_played=true`.
 - `preview_played=true` requires a real preview artifact, `pipeline_mode` in `partial_real` or `real_synthesis`, `mock_fixture_used=false`, `section_limited=true`, `playback_blocked=false`, a playback session id, successful playback URL audit, foreground unmuted playback, no severe playback error, and unique timeline coverage of at least 80% of preview duration.
 - For the P0 `Mist intro` section, `preview_played=true` requires at least 22.4 seconds of distinct timeline coverage because the section is 28 seconds long.
+- `preview_played=true` must be computed within one playback session. P0 must not combine short listened ranges across multiple sessions to unlock rating.
 - The app should send playback progress every 1 second during active foreground, unmuted playback, and must flush progress on pause, seek, end, background, mute, or error.
 - Playback events must include event id, schema version, occurred-at timestamp, and session-scoped client sequence so the server can merge duplicate or out-of-order events.
 - The server must compute `preview_played=true` from merged distinct played ranges. Client-reported total playback time alone must not count as metric eligibility.
 - Late playback progress may count only within a 15-second flush grace window, and impossible playback progress beyond a 2-second wall-clock tolerance must be excluded or rejected.
+- Rating submission must reference the same playback session that unlocked rating and must happen before the rating unlock expires.
 - If the rating is below 4, the user must be asked to select one or more failure reason tags.
 - P0 failure reason tags must include: `not_my_voice`, `not_song_like`, `pitch_wrong`, `timing_wrong`, `robotic_or_artifact`, `noise_or_clipping`, `too_short_or_incomplete`, `other`.
 - Playback failure is not a preview quality rating tag. It must be captured as a separate `playback_problem_reported` event.
@@ -602,7 +604,7 @@ Vox2Vocal P0 MVP는 음악 학습자가 Ken Kamikita의 `Mist`를 선택하고, 
 - Given a user rates the preview below 4 on "이 preview가 내 목소리처럼 들린다", when the rating is submitted, then the user must select at least one failure reason tag or enter `other`.
 - Given a user rates the preview 4 or higher, when the rating is submitted, then the response counts as success for the primary self-voice metric.
 - Given a user opens a playable preview, when they only tap play briefly or replay the same short range, then `preview_played=true` is not set until unique timeline coverage reaches at least 80% of the preview duration.
-- Given the `Mist intro` preview duration is 28 seconds, when the user hears at least 22.4 seconds of distinct timeline without severe playback error, foreground/mute/audit conditions are satisfied, and the preview is from `partial_real` or `real_synthesis`, then `preview_played=true` may be set.
+- Given the `Mist intro` preview duration is 28 seconds, when the user hears at least 22.4 seconds of distinct timeline in one playback session without severe playback error, foreground/mute/audit conditions are satisfied, and the preview is from `partial_real` or `real_synthesis`, then `preview_played=true` may be set.
 - Given `preview_played=false`, when the user tries to submit the primary self-voice rating, then rating submission is blocked and the user may report a playback problem instead.
 - Given playback progress events are duplicated, delayed, submitted out of order, or replayed with the same event id, when the server merges the events, then the server uses event id/schema validation and distinct played ranges, and does not inflate coverage from duplicate total time.
 - Given a pipeline stage fails, when the user views the job, then the failed stage, plain-language reason, and retry guidance are shown.

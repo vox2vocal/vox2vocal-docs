@@ -1,15 +1,15 @@
 # Vox2Vocal MVP Technical Requirements Document
 
-문서 버전: v0.3
+문서 버전: v0.4
 작성일: 2026-06-15
 상태: 초안
 적용 skill: `trd-writer`
 기준 문서:
 
-- `pm/vox2vocal-mvp-prd.md` v0.13
-- `pm/vox2vocal-mvp-feature-definition.md` v0.5
-- `pm/vox2vocal-mvp-page-flow-plan.md` v0.3
-- `pm/vox2vocal-mvp-api-data-contract-plan.md` v0.2
+- `pm/vox2vocal-mvp-prd.md` v0.14
+- `pm/vox2vocal-mvp-feature-definition.md` v0.6
+- `pm/vox2vocal-mvp-page-flow-plan.md` v0.4
+- `pm/vox2vocal-mvp-api-data-contract-plan.md` v0.3
 
 ## Technical Summary
 
@@ -266,7 +266,7 @@ Worker gains P0 canonical job responsibilities:
 
 ### Engines
 
-Engines keep their current final-target composition. P0 implementation must use the downstream engine event contracts in `pm/vox2vocal-mvp-api-data-contract-plan.md` v0.2 and emit typed events with stable ids. Engine event payloads include job id, stage, attempt, status, artifact refs, error codes, timing, confidence summary when relevant, engine version, and stage-specific payloads for `voice_pitch`, `target_pitch_mapping`, `preview_synthesis`, `render`, `preview_evaluation`, and `safety_rights`.
+Engines keep their current final-target composition. P0 implementation must use the downstream engine event contracts in `pm/vox2vocal-mvp-api-data-contract-plan.md` v0.3 and emit typed events with stable ids. Engine event payloads include job id, stage, attempt, status, artifact refs, error codes, timing, confidence summary when relevant, engine version, and stage-specific payloads for `voice_pitch`, `target_pitch_mapping`, `preview_synthesis`, `render`, `preview_evaluation`, and `post_render_safety_rights`.
 
 P0 downstream engine event requirements:
 
@@ -275,10 +275,14 @@ P0 downstream engine event requirements:
 - Engines never write job-state tables directly.
 - Unknown major schema versions are rejected; additive fields are stored as raw metadata for internal debugging.
 - Stage payloads must include success/failure fields, retryability, artifact refs, confidence summary, and user-safe reason mapping before engine/worker tickets are split.
+- Engine event status maps to StageResult status using the API/data contract mapping: `started -> running`, `succeeded -> succeeded`, `failed -> failed`, `blocked -> blocked`, and `needs_review -> needs_review`.
+- `voice_pitch` is the canonical pitch extraction stage name. New contracts and tickets must not use `user_pitch_extraction`.
 
 ### Safety Rights
 
-Safety Rights must be invoked before:
+Safety Rights has two P0 contract roles.
+
+`preflight_safety_rights` is a synchronous gate invoked before:
 
 - song package exposure
 - recording/upload completion
@@ -287,6 +291,8 @@ Safety Rights must be invoked before:
 - generated preview playback URL issuance
 - deletion and rights complaint state changes
 - contact decrypt/send actions when contact follow-up is enabled
+
+`post_render_safety_rights` is the downstream post-render event stage that validates a generated preview artifact before playback/rating eligibility. It must never replace the preflight gate for `completeAudioUpload` or playback URL issuance.
 
 ## API Contract
 
@@ -304,7 +310,7 @@ P0 contract defaults:
 
 P0 contract freeze gate before `spec-to-tickets`:
 
-- `api-data-contract-planner` output v0.2 defines GraphQL/API shape, proto/service names, downstream engine event payloads, playback constants, rights/risk launch checklist, `needs_review` SLA, and `PreviewArtifact` physical schema decision.
+- `api-data-contract-planner` output v0.3 defines GraphQL/API shape, proto/service names, downstream engine event payloads, playback constants, rights/risk launch checklist, governance evidence ref, `needs_review` SLA, and `PreviewArtifact` physical schema/index decision.
 - Generated contracts must define field names, nullability, enum values, pagination shape, idempotency behavior, error mapping, and schema version.
 - Ticketing must not start from endpoint names alone.
 
@@ -411,11 +417,13 @@ Playback event defaults:
 Playback anti-abuse and race rules:
 
 - Events are accepted only for the authenticated user, issued playback session, artifact, and job tuple.
+- Metric-eligible playback coverage is computed inside one playback session only. P0 must not aggregate coverage across sessions.
 - `occurred_at` must be inside the playback session validity window. Late delivery may be accepted only when the event time was valid and the server receives it within `PLAYBACK_LATE_FLUSH_GRACE_MS=15000`.
 - Events received after `PLAYBACK_STALE_SESSION_REJECT_AFTER_MS=expires_at+15000` are rejected.
 - Played ranges must satisfy `0 <= played_range_start_ms < played_range_end_ms <= preview_duration_ms`; invalid ranges are rejected and logged with a safe reason.
 - The server must reject or ignore impossible progress, such as played duration that exceeds wall-clock elapsed time plus `PLAYBACK_WALL_CLOCK_TOLERANCE_MS=2000`, negative jumps without a seek event, or payload changes for an existing `event_id`.
 - Muted or background playback events may be stored for diagnostics but must not increase metric-eligible coverage.
+- Severe playback error codes are `decode_error`, `network_stall_unrecovered`, `signed_url_denied`, `artifact_missing`, `duration_mismatch`, `integrity_mismatch`, and `player_crash`. These keep diagnostics but cannot unlock rating for that playback session.
 - Seek-loop replay of the same short segment must not increase unique timeline coverage beyond the distinct merged ranges.
 - If consent, rights, deletion, audit, or artifact status changes after URL issuance but before rating, `preview_played` and rating unlock must be recomputed against the latest blocking state.
 - Expired sessions, playback sessions issued for blocked artifacts, and severe playback errors cannot unlock rating.
@@ -435,6 +443,8 @@ Playback anti-abuse and race rules:
 - unique timeline coverage is at least 80% of preview duration.
 
 For `Mist intro` at 28 seconds, this means at least 22.4 seconds of distinct preview timeline must be heard. Replaying the same short segment repeatedly must not inflate `unique_timeline_coverage`.
+
+Rating unlock expires 15 minutes after `rating_unlocked_at` by default. Rating submission must reference the same playback session that reached `preview_played=true`.
 
 ### Rating And Review
 
@@ -511,12 +521,13 @@ Core tables or model groups:
 - `reference_assets`: reference audio artifact, checksum, uploader, provenance, retention deadline.
 - `rights_records`: allowed/prohibited uses, approver, evidence location, expiry/re-review, complaint owner.
 - `risk_acceptance_records`: allowed users/groups, exact section, duration, prohibited uses, kill-switch owner.
+- `governance_evidence_records`: private metadata evidence for rights source, risk acceptance, complaints, re-review, and kill-switch decisions. Evidence refs use `evidence://governance/{evidence_record_id}` and must not contain raw audio, full lyrics, signed URLs, tokens, or playable URLs.
 - `upload_sessions`: owner, object key, content type, expiry, idempotency key, selected song/section.
 - `audio_assets`: source object, owner, source type, duration candidate, checksum.
 - `conversion_jobs`: canonical state, selected song/section, source asset, BPM/key snapshot, consent snapshot, rights snapshot.
 - `stage_results`: normalized stage ledger.
 - `artifact_refs`: storage pointer, data class, status, rights state, playback allowed, retention deadline.
-- `preview_artifacts`: separate physical table for self-voice preview lineage, section coverage, playback eligibility, quality status, and metric eligibility fields. P0 should not store this only as JSON inside `artifact_refs`.
+- `preview_artifacts`: separate physical table for self-voice preview lineage, section coverage, playback eligibility, quality status, and metric eligibility fields. P0 should not store this only as JSON inside `artifact_refs`. Required constraints include unique `artifact_id`, unique `(job_id, artifact_id)`, and indexes for playback blocking, lineage verification, quality status, section coverage, and retention/deletion deadlines.
 - `outbox_events`: pending engine requests after job commit.
 - `playback_sessions`: issued preview playback session, audit refs, playback progress, muted/app foreground flags, severe error status, unique timeline coverage.
 - `ratings`: artifact rating, prompt version, playback eligibility.
@@ -731,7 +742,8 @@ Rollback must be operationally safe rather than only code rollback.
 - StageResult schema validation and enum compatibility
 - JobProjection, PreviewArtifact, PlaybackSession, and PlaybackEvent schema validation
 - Proto service/message mapping validation for `VoxAuthService`, `VoxConsentService`, `VoxCatalogService`, `VoxUploadService`, `VoxJobService`, `VoxPlaybackService`, `VoxReviewService`, and `VoxGovernanceService`
-- EngineStageEvent payload validation for `voice_pitch`, `target_pitch_mapping`, `preview_synthesis`, `render`, `preview_evaluation`, and `safety_rights`
+- EngineStageEvent payload validation for `voice_pitch`, `target_pitch_mapping`, `preview_synthesis`, `render`, `preview_evaluation`, and `post_render_safety_rights`
+- Stage status mapping tests for `started`, `succeeded`, `failed`, `blocked`, and `needs_review`
 - playback anti-abuse range validation and stale session rejection
 
 ### Integration Tests
@@ -751,6 +763,7 @@ Rollback must be operationally safe rather than only code rollback.
 - transactional job creation plus outbox insert rollback on failure
 - NATS duplicate/replay event handling
 - playback progress interval, event id/schema version validation, duplicate/out-of-order event merge, stale/expired session rejection, impossible played range rejection, and unique timeline coverage calculation
+- single-session playback coverage rule, rating unlock expiration, severe playback error taxonomy, and rating submission tied to the unlocking playback session
 - consent/rights/deletion changes between playback URL issuance, playback start, `preview_played=true`, and rating submission
 - PreviewArtifact lineage validation: `mock_fixture_used=false`, source audio checksum, source user id, section id, duration, and section coverage
 - object storage lifecycle and retention/deletion flow

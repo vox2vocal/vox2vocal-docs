@@ -1,8 +1,13 @@
 # Vox2Vocal MVP Feature Definition
 
-문서 버전: v0.5
+문서 버전: v0.6
 작성일: 2026-06-13
-기준 문서: `pm/vox2vocal-mvp-prd.md` v0.12, `pm/vox2vocal-mvp-prd-review.md`
+기준 문서:
+
+- `pm/vox2vocal-mvp-prd.md` v0.14
+- `pm/vox2vocal-mvp-trd.md` v0.4
+- `pm/vox2vocal-mvp-api-data-contract-plan.md` v0.3
+- `pm/vox2vocal-mvp-prd-review.md`
 적용 skill: `feature-definer`
 
 ## Context
@@ -79,7 +84,7 @@ P0는 `Mist` 전체 section map을 song package로 보관하되, 기본 target�
   - P0 내부 운영에서만 `unlicensed_internal_risk_accepted` 상태를 사용할 수 있다. 이 상태는 internal allowlist, feature flag, risk acceptance record가 모두 있을 때만 제한 선택과 section-limited preview processing을 허용한다.
   - `unlicensed_internal_risk_accepted` 예외는 `Mist intro 0:00-0:28`의 section-limited self-voice preview 검증에만 적용하며, full-song 처리나 다른 section 확장에는 적용하지 않는다.
   - rights clearance record는 승인자, 승인 근거, 허용 용도, 금지 용도, 만료/재검토일, retention, deletion owner, complaint owner를 포함해야 한다.
-  - risk acceptance record는 rights clearance가 아니며 `risk_acceptance_id`, `song_package_id`, `reference_asset_id`, `checksum`, `allowed_user_ids` 또는 `allowed_group_id`, 최대 참여자 수, 시작/종료일, exact section, 금지 용도, kill-switch owner를 포함해야 한다.
+  - risk acceptance record는 rights clearance가 아니며 `risk_acceptance_id`, `song_package_id`, `reference_asset_id`, `checksum`, `evidence_ref`, `allowed_user_ids` 또는 `allowed_group_id`, 최대 참여자 수, 시작/종료일, exact section, 금지 용도, kill-switch owner를 포함해야 한다.
 - Permissions / roles:
   - `admin`: song package 등록/수정 요청
   - `policy_or_rights_owner`: rights clearance 승인/차단 책임자 metadata
@@ -528,7 +533,7 @@ Policy note: non-commercial or research-oriented use does not automatically make
 | retention period | Yes | reference audio 보관 기준 |
 | deletion owner | Yes | 삭제 실행 책임 |
 | complaint owner | Yes | 권리 이슈 접수 후 차단/검토 책임 |
-| evidence storage location | Yes | 문서, DB record, ticket 등 실제 저장 위치 |
+| evidence storage location | Yes | `governance_evidence_records.evidence_ref`, 형식은 `evidence://governance/{evidence_record_id}` |
 
 Rights state transition:
 
@@ -548,7 +553,7 @@ published -> retired
 
 `published` 전에는 learner selection과 preview processing을 허용하지 않는 것이 원칙이다. 단, `unlicensed_internal_risk_accepted`는 개발자 owner가 명시적으로 risk acceptance를 기록한 제한된 내부 운영에서만 사용할 수 있다. 이 예외는 internal allowlist, feature flag, audit write success가 모두 충족될 때만 적용되며 수익화, 공개 beta, 외부 고객 제공, 음원/preview 다운로드, 공유, 학습 데이터 사용에는 적용되지 않는다.
 
-P0 risk acceptance record는 제한된 admin 화면의 rights/risk record에 저장한다. 해당 화면이 구현되기 전에는 PM 문서 또는 ticket에 임시로 남기고, admin 화면 구현 후 migration한다. record에는 `risk_acceptance_id`, `song_package_id`, `reference_asset_id`, checksum, 승인자, 범위, 기간, 최대 참여자 수, `allowed_user_ids` 또는 `allowed_group_id`, exact section, 금지 용도, retention, deletion owner, complaint owner, kill-switch owner, 재검토일을 포함한다.
+P0 risk acceptance record는 DB source of truth에 저장한다. 제한된 admin 화면이 구현되기 전에는 seed/admin-write path가 `rights_records`, `risk_acceptance_records`, `governance_evidence_records`를 함께 생성해야 한다. record에는 `risk_acceptance_id`, `song_package_id`, `reference_asset_id`, checksum, `evidence_ref`, 승인자, 범위, 기간, 최대 참여자 수, `allowed_user_ids` 또는 `allowed_group_id`, exact section, 금지 용도, retention, deletion owner, complaint owner, kill-switch owner, 재검토일을 포함한다. Evidence text에는 raw audio, full lyrics, signed/playable URL, token, contact plaintext를 포함하지 않는다.
 
 Exposure rule:
 
@@ -791,7 +796,7 @@ Engine event는 각 엔진의 공개 transport contract로 유지하며, event t
 | `stage_result_id` | Yes | stable id |
 | `schema_version` | Yes | StageResult schema version |
 | `job_id` | Yes | canonical job id |
-| `stage` | Yes | `upload_validation`, `audio_ingest`, `section_validation`, `target_pitch_mapping`, `user_pitch_extraction`, `preview_synthesis`, `render`, `preview_evaluation`, `safety_rights`, `retention_deletion` |
+| `stage` | Yes | `upload_validation`, `audio_ingest`, `section_validation`, `target_pitch_mapping`, `voice_pitch`, `preview_synthesis`, `render`, `preview_evaluation`, `preflight_safety_rights`, `post_render_safety_rights`, `retention_deletion` |
 | `attempt` | Yes | integer, starts at 1 |
 | `status` | Yes | `queued`, `running`, `succeeded`, `failed`, `blocked`, `skipped` |
 | `source_event_type` | Conditional | engine event type or direct stage completion type |
@@ -926,7 +931,7 @@ P0 decision: `partial_real` preview도 P0 self-voice success 후보로 인정한
 - real committed user voice input exists with `source_audio_asset_id`
 - `audio_ingest=succeeded`
 - `section_validation=succeeded`
-- `user_pitch_extraction=succeeded`
+- `voice_pitch=succeeded`
 - generated preview artifact has `job_id`, checksum, duration, `source_audio_asset_id`, `source_canonical_artifact_id` or `parent_artifact_refs`, `section_limited=true`, `preview_available=true`, `playback_allowed=true`
 - `preview_artifact.source_audio_asset_id == job.source_audio_asset_id`
 - `section_coverage_ratio >= 0.8` or duration is within section length tolerance
@@ -1008,7 +1013,7 @@ P0 owner assignment: 별도 팀이 없으므로 개발자인 사용자가 deleti
 ## Scope Risks
 
 - `intro`는 나레이션 중심이라 self-voice preview 검증에는 좋지만 singing pitch accuracy와 후렴 고음 synthesis 대표성이 약하다.
-- reference audio rights clearance owner와 evidence 저장 위치가 확정되지 않으면 P0 launch gate를 통과할 수 없다.
+- `governance_evidence_records`와 seed/admin-write path가 구현되지 않으면 P0 learner exposure launch gate를 통과할 수 없다.
 - P0 최소 엔진 경로가 mock-only로 후퇴하면 P0 self-voice success 판정이 흔들린다.
 - `worker` owned job state module 구현이 늦어지면 retry, partial artifact, failed_with_partial_artifacts, app-facing status가 흔들린다.
 - recorder/take review와 presigned upload/playback 계약 구현이 늦어지면 앱, BFF, API Gateway, storage, audit 구현이 동시에 막힌다.
@@ -1025,10 +1030,10 @@ P0 owner assignment: 별도 팀이 없으므로 개발자인 사용자가 deleti
 
 ## Open Questions
 
-- `unlicensed_internal_risk_accepted`를 실제로 켜기 위한 risk acceptance record를 누가 작성/승인하고 어디에 저장할 것인가?
+- P0 이후 permanent policy/right owner를 누구로 분리할 것인가?
 - P0 내부 운영 기간 동안 second reviewer를 둘 수 있는가? 둘 수 없다면 break-glass raw/canonical audio access와 contact plaintext reveal은 disabled로 유지한다.
 - contact follow-up은 P0에서 disabled capability status만 남긴다. 실제 연락처 UI, 값 저장, 발송, 복호화, export를 언제 어떤 owner/reviewer 체계로 켤 것인가는 수익화 또는 외부 beta 전 재결정한다.
-- 권리 evidence 없는 `Mist` 제한 노출을 내부 운영 종료 전 어느 시점에 `rights_pending`, `published`, 또는 `rights_blocked`로 재판정할 것인가?
+- `Mist` 제한 노출을 내부 운영 종료 전 어느 시점에 `rights_pending`, `published`, 또는 `rights_blocked`로 재판정할 것인가?
 
 ## Recommended Next Skill
 

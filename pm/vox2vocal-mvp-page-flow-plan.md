@@ -1,8 +1,8 @@
 # Vox2Vocal MVP Page / Flow Plan
 
-문서 버전: v0.3
+문서 버전: v0.4
 작성일: 2026-06-13
-기준 문서: `pm/vox2vocal-mvp-feature-definition.md` v0.5
+기준 문서: `pm/vox2vocal-mvp-feature-definition.md` v0.6, `pm/vox2vocal-mvp-api-data-contract-plan.md` v0.3
 적용 skill: `page-flow-planner`
 
 ## Flow Summary
@@ -349,6 +349,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
   - reference audio asset, checksum, uploader, upload timestamp
   - section map and default target section
   - rights state and risk acceptance state
+  - `governance_evidence_records.evidence_ref`
   - allowed user ids/group id
   - retention/deletion owner
   - complaint owner and kill-switch owner
@@ -357,6 +358,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
   - reference audio upload control
   - section timeline table
   - rights/risk checklist
+  - governance evidence ref field
   - exposure decision panel
   - internal allowlist control
   - audit status indicator
@@ -464,6 +466,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
   - audit records
   - deletion evidence
   - risk acceptance records
+  - governance evidence records and `evidence_ref`
   - retention deadlines
   - rights complaint and block records
   - disabled contact follow-up capability status
@@ -471,6 +474,7 @@ P0는 시각 mockup을 만들지 않는다. 이 문서는 화면 목적, 데이�
 - Key components:
   - evidence table
   - risk acceptance detail
+  - evidence ref detail
   - deletion job status
   - audit fail-closed status
   - contact follow-up disabled capability notice
@@ -573,7 +577,7 @@ Expected design deliverables:
 | Limited Admin Song Package / Rights Gate | Admin Song Package And Rights Gate | reference upload, exposure 결정 | package metadata, section map, rights/risk record, allowlist | draft, metadata_incomplete, rights_pending, risk_accepted, rights_blocked |
 | Educator / Expert Review Queue | Result Review, Rating, And Failure Tagging | 동의된 job 선택 | reviewable jobs, consent status, rating/failure summary | empty queue, loading, consent withdrawn, permission denied |
 | Review Detail / Internal Reviewer Mode | Target Pitch Mapping And Confidence Handling | pitch/quality 검토 | pitch report, low-confidence ranges, technical tags | review_pending, review_completed, playback_blocked |
-| Governance Evidence / Audit / Deletion | Safety, Audit, Retention, And Deletion Governance | evidence 확인, failure 처리 | audit records, deletion evidence, risk acceptance, contact gate | audit_failed, deletion_failed, break-glass disabled, permission denied |
+| Governance Evidence / Audit / Deletion | Safety, Audit, Retention, And Deletion Governance | evidence 확인, failure 처리 | audit records, deletion evidence, governance evidence records, risk acceptance, contact gate | audit_failed, deletion_failed, break-glass disabled, permission denied |
 
 ## UX Risks
 
@@ -595,15 +599,15 @@ Expected design deliverables:
 
 ## Open Questions
 
-- `unlicensed_internal_risk_accepted`를 실제로 켜기 위한 risk acceptance record의 source of truth는 PM 문서, DB, ticket 중 어디인가?
+- P0 이후 permanent policy/right owner를 누구로 분리할 것인가?
 - P0 내부 운영 기간 동안 second reviewer를 둘 수 있는가? 없으면 Governance Evidence는 break-glass disabled 상태를 어떻게 보여줄 것인가?
 - contact follow-up은 P0에서 disabled capability status만 정의한다. 실제 UI, backend 저장, 발송, 복호화, export는 수익화 또는 외부 beta 전 권한/암호화/감사 owner를 갖춘 뒤 재결정한다.
 - 권리 evidence 없는 `Mist` 제한 노출은 내부 운영 종료 전 어느 시점에 `rights_pending`, `published`, 또는 `rights_blocked`로 재판정할 것인가?
 - mobile app과 web에서 admin/review/governance surface를 모두 제공할 것인가, 아니면 learner app은 mobile-first, internal surface는 web-first로 제한할 것인가?
-- reference pre-listen과 lyrics display flags의 source of truth는 admin rights/risk record, DB package field, ticket 중 어디인가?
+- reference pre-listen과 lyrics display flags는 DB package/right record가 source of truth다. 실제 UI에서는 어떤 label과 disabled reason으로 보여줄 것인가?
 
 ## Recommended Next Skill
 
 `spec-to-tickets`
 
-Page ownership, primary CTA, page states, permission states, navigation, feature mapping이 개발 티켓으로 분해 가능한 수준으로 정리됐다. 남은 Open Questions는 내부 운영/권리 gate와 reference/lyrics flag source of truth에 관한 launch decision이며, learner core flow와 internal surface의 ticket breakdown은 진행 가능하다.
+Page ownership, primary CTA, page states, permission states, navigation, feature mapping이 개발 티켓으로 분해 가능한 수준으로 정리됐다. 단, `spec-to-tickets` 전에 contract foundation, governance evidence seed/admin-write path, playback telemetry validation 티켓을 먼저 분리해야 한다.
