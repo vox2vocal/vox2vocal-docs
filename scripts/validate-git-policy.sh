@@ -8,7 +8,7 @@ REQUIRED_EMAIL="gitbyul@gmail.com"
 ALLOWED_TYPES_REGEX='(feat|fix|docs|chore|refactor|test|ci)'
 SCOPE_REGEX='[a-z][a-z0-9-]*'
 TICKET_REGEX='[A-Z][A-Z0-9]+-[0-9]+'
-VERSION_REGEX='[A-Za-z0-9][A-Za-z0-9._-]*'
+DOC_ID_VERSION_REGEX='[A-Za-z0-9][A-Za-z0-9.-]*_[A-Za-z0-9][A-Za-z0-9.-]*'
 
 is_docs_policy() {
   [ "$REPO_POLICY" = "docs" ]
@@ -20,7 +20,7 @@ has_korean_text() {
 
 header_pattern() {
   if is_docs_policy; then
-    printf '^%s\\(%s\\): \\[%s\\] .+$' "$ALLOWED_TYPES_REGEX" "$SCOPE_REGEX" "$VERSION_REGEX"
+    printf '^%s\\(%s\\): \\[%s\\] .+$' "$ALLOWED_TYPES_REGEX" "$SCOPE_REGEX" "$DOC_ID_VERSION_REGEX"
   else
     printf '^%s\\(%s\\): \\[%s\\] .+$' "$ALLOWED_TYPES_REGEX" "$SCOPE_REGEX" "$TICKET_REGEX"
   fi
@@ -28,7 +28,7 @@ header_pattern() {
 
 expected_header() {
   if is_docs_policy; then
-    printf 'type(scope): [VERSION] 한글 제목'
+    printf 'type(scope): [문서번호_버전] 한글 제목'
   else
     printf 'type(scope): [TICKET] 한글 제목'
   fi
@@ -52,7 +52,8 @@ POLICY
     cat <<'POLICY'
 
 Document repository rules:
-  - [VERSION] is required and must be a non-empty version token.
+  - [문서번호_버전] is required and must contain a document number/id, one underscore, and a version.
+  - 문서번호 and 버전 may contain letters, numbers, dots, and hyphens, but not underscores.
   - ticket text is optional for document commits.
   - document version-up requires a prior separate commit for existing document edits.
 POLICY

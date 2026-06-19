@@ -366,12 +366,19 @@ type(scope): [TICKET] 한글 제목
 - 한글 bullet body
 ```
 
-문서 repo는 ticket을 선택으로 두고, 문서 버전 또는 문서 변경 단위를 bracket에 표시한다.
+문서 repo는 ticket을 선택으로 두고, 문서번호와 버전을 `_`로 연결해 bracket에 표시한다.
 
 ```txt
-type(scope): [VERSION] 한글 제목
+type(scope): [문서번호_버전] 한글 제목
 
 - 한글 bullet body
+```
+
+예시:
+
+```txt
+docs(policy): [GIT-POLICY_v2026.06.19] Git 정책 운영 방식 갱신
+docs(prd): [MVP-PRD_v0.14] MVP PRD 동의 정책 갱신
 ```
 
 - `type`은 `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `ci` 중 하나로 작성한다.
